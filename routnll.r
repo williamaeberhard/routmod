@@ -35,10 +35,11 @@ rout_nll <- function(par){
 	#   * neighlist: list of length nS, each element being an integer vector of
 	#                values within 1:nS of direct/Markov neighbors ustr, not incl
 	#                itself, so each entry is of length within {0, ..., nS-1}
-	#   * wshapecovlist: list of length nS, each element being a list of numeric
-	#                    vectors (number of vectors is length of the corresponding
-	#                    element in neighlist), each vector being of same length p
-	#                    = length(wshapebeta) where the values are static cov
+	#   * wshapecovlist: list of length nS, same ordering as neighlist, each
+	#                    element being a list of numeric vectors (number of
+	#                    vectors is length of the corresponding element in
+	#                    neighlist), each vector being of same length p =
+	#                    length(wshapebeta) where the values are static cov
 	#   * lag0: lag 0 = same day for gamma kernel, but >0, e.g. 1e-3
 	
 	
@@ -67,13 +68,14 @@ rout_nll <- function(par){
 			for (ss in 1:length(neighlist[[s]])){ # loop over direct ustr neighbors
 				# gammadens <- dgamma(x=c(lag0,1:maxlag), # lag0 = same day = e.g. 1e-3
 				# 										shape=wshape*distlist[[s]][ss],scale=wscale)
-				whshape_ss <- wshapebeta%*%wshapecovlist[[s]][[ss]] # lin comb, p->1
+				whshape_ss <- exp(wshapebeta%*%wshapecovlist[[s]][[ss]])
+				# ^ lin comb (p->1) with log link for shape>0
 				gammadens <- dgamma(x=c(lag0,1:maxlag), # lag0 = same day = e.g. 1e-3
 														shape=whshape_ss,
 														scale=wscale)
 				gammadens <- gammadens/sum(gammadens) # rescale, so sum(weights) = 1
 				fitted[s,t] <- fitted[s,t] +
-					+ sum(gammadens*fitted[neighlist[[s]][ss], t-(0:maxlag)])
+					+ sum(gammadens*fitted[neighlist[[s]][[ss]], t-(0:maxlag)])
 				# ^ weighted comb of pred from ustr neighbors at lag 0:maxlag
 			}
 			# } # else no loc ustr from s and thus fitted[s,] = predmat[s,]
