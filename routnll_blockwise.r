@@ -118,9 +118,6 @@ rout_nll_block <- function(par){
 	#   - obsmat: numeric matrix of discharge (m3/s), no NAs, nS x nT
 	#   - obsindmat: 0-1 matrix, same dim as obsmat (to multiply elementwise)
 	#   - predmat: numeric matrix of pred discharge, no NAs, same dim as obsmat
-	#   - predmatprev: numeric matrix of routed pred discharge from previous
-	#     evaluation of rout_nll_block (or rout_nll_block_ini if b=2) on past
-	#     block of maxlag time points, no NAs, nS x maxlag
 	#   - maxlag: integer >=1, max lag in routing from spatial neighbors
 	#   - routingorder: integer vector routing ustr -> dstr, within 1:nS but of
 	#     length <=nS since excl loc most ustr where fitted=predmat
@@ -149,19 +146,17 @@ rout_nll_block <- function(par){
 	
 	nS <- nrow(datalist$obsmat) # nb loc overall (polyg and stations)
 	nT <- ncol(datalist$predmat) # total nb time points
-	# ncolpredprev <- ncol(datalist$predmatprev)
 	
 	predmat1 <- DataEval(f=function(i){
-		bvec <- 1:datalist$maxlag +
+		bvec <- (1-datalist$maxlag):datalist$maxlag +
 			+ (i-2)*datalist$maxlag +
 			+ 2*datalist$maxlag
+			# ^ replaces former predmatprev, now previous block's fitted overwrite
+			#   values in rpredmat at each iteration
 		if (bvec[datalist$maxlag]>nT){
 			bvec <- bvec[-which(bvec>nT)] # last block: cap at nT
 		}
-		return(cbind(
-			# datalist$predmatprev[,(ncolpredprev-datalist$maxlag+1):ncolpredprev],
-			datalist$predmatprev, # should have maxlag cols
-			datalist$predmat[,bvec]))
+		return(datalist$predmat[,bvec])
 	},x=par$b)
 	obsmat1 <- DataEval(f=function(i){
 		bvec <- 1:datalist$maxlag +
