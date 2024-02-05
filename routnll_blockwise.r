@@ -65,7 +65,8 @@ rout_nll_block_ini <- function(par){
 		for (s in datalist_ini$routingorder){
 			# loop over all loc excl the ones most ustr where fitted[s,]=predmat[s,]
 			for (ss in 1:length(datalist_ini$neighlist[[s]])){ # direct ustr neighbors
-				whshape_ss <- exp(wshapebeta%*%datalist_ini$wshapecovlist[[s]][[ss]])
+				# whshape_ss <- exp(wshapebeta%*%datalist_ini$wshapecovlist[[s]][[ss]])
+				whshape_ss <- exp(sum(wshapebeta*datalist_ini$wshapecovlist[[s]][[ss]]))
 				# ^ lin comb (p->1) with log link for shape>0
 				gammadens <- dgamma(
 					x=c(datalist_ini$lag0, 1:datalist_ini$maxlag), # lag0 = same day
@@ -243,7 +244,8 @@ rout_nll_block <- function(par){
 		for (s in datalist$routingorder){
 			# loop over all loc, excl the ones most ustr where fitted[s,]=predmat[s,]
 			for (ss in 1:length(datalist$neighlist[[s]])){ # direct ustr neighbors
-				whshape_ss <- exp(wshapebeta%*%wshapecovlist[[s]][[ss]])
+				# whshape_ss <- exp(wshapebeta%*%wshapecovlist[[s]][[ss]]) # wrong! missing datalist$
+				whshape_ss <- exp(sum(wshapebeta*datalist$wshapecovlist[[s]][[ss]]))
 				# ^ lin comb (p->1) with log link for shape>0
 				gammadens <- dgamma(
 					x=c(datalist$lag0, 1:datalist$maxlag), # lag0 = same day
@@ -342,7 +344,8 @@ rout_nll_block_last <- function(par){
 		for (s in datalist_last$routingorder){
 			# loop over all loc, excl the ones most ustr where fitted[s,]=predmat[s,]
 			for (ss in 1:length(datalist_last$neighlist[[s]])){ # direct ustr neighbors
-				whshape_ss <- exp(wshapebeta%*%wshapecovlist[[s]][[ss]])
+				# whshape_ss <- exp(wshapebeta%*%wshapecovlist[[s]][[ss]]) # wrong! missing datalist$
+				whshape_ss <- exp(sum(wshapebeta*datalist_last$wshapecovlist[[s]][[ss]]))
 				# ^ lin comb (p->1) with log link for shape>0
 				gammadens <- dgamma(
 					x=c(datalist_last$lag0, 1:datalist_last$maxlag), # lag0 = same day
