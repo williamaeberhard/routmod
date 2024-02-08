@@ -8,8 +8,10 @@ routmod: R code for routing module to improve river discharge predictions along 
 
 ### Version History
 
-This is routmod version 0.3
+This is routmod version 0.4
 
+* v0.4:
+  - added intercept to wshapebeta in routnll_blockwise.r. Made notes in routnll_blockwise_firsteval.r and routnll_blockwise_eval.r although nothing changed there.
 * v0.3:
   - created routnll_blockwise.r which defines rout_nll_block_ini and rout_nll_block
   - created routnll_blockwise_eval.r which defines routnll_blockwise_eval which evaluates the fn and gr by block, assuming datalist_ini and datalist are defined in the global envir

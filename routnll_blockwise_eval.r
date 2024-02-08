@@ -1,5 +1,6 @@
-# routnll_blockwise_eval: eval fn and gr of rounll_blockwise | v0.3
+# routnll_blockwise_eval: eval fn and gr of rounll_blockwise | v0.4
 # * Change log:
+#    - v0.4: added intercept to wshapebeta (doesn't change anything below)
 #    - v0.3: initial version
 
 routnll_blockwise_eval <- function(parvec,
@@ -16,20 +17,7 @@ routnll_blockwise_eval <- function(parvec,
 	}
 	rpredmat <- predmat # routed predictions
 	
-	# parvec <- c(
-	# 	0,   # log_wscale
-	# 	0.01 # wshapebeta
-	# )
-	
-	# lag0 <- 1e-3
-	
-	# # maxlag <- 2L # fastest
-	# # maxlag <- 3L # good to test with nT not a multiple of maxlag
-	# # maxlag <- 4L
-	# # maxlag <- 5L #
-	# maxlag <- 10L # more realistic
-	
-	
+
 	# wallclock <- proc.time()[3]
 	
 	
@@ -39,7 +27,7 @@ routnll_blockwise_eval <- function(parvec,
 	
 	parlist_ini <- list(
 		'log_wscale'=parvec[1],
-		'wshapebeta'=parvec[2:length(parvec)]
+		'wshapebeta'=parvec[2:length(parvec)] # v0.4: now incl intercept as [1]
 	)
 	lenbeta <- length(parlist_ini$wshapebeta)
 	

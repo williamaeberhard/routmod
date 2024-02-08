@@ -1,5 +1,6 @@
-# routnll blockwise: neg log lik for routing | v0.3
+# routnll blockwise: neg log lik for routing | v0.4
 # * Change log:
+#    - v0.4: added intercept to wshapebeta
 #    - v0.3: clean up notation
 #    - v0.2: initial version, forked from routmod/rout_nll v0.2
 
@@ -10,7 +11,7 @@ is.whole <- function(x,tol=.Machine$double.eps^0.5){abs(x-round(x))<tol}
 rout_nll_block_ini <- function(par){
 	# * par vector order:
 	#   - log_wscale (1)
-	#   - wshapebeta (p)
+	#   - wshapebeta (p, now incl intercept)
 	# * datalist_ini must include:
 	#   - obsmat: numeric matrix of discharge (m3/s) starting after first maxlag
 	#     time points, no NAs, nS x maxlag
@@ -26,7 +27,7 @@ rout_nll_block_ini <- function(par){
 	#   - wshapecovlist: list of length nS, same ordering as neighlist, each
 	#     element being a list of numeric vectors (number of vectors is length of
 	#     the corresponding element in neighlist), each vector being of same
-	#     length p = length(wshapebeta) where the values are static cov
+	#     length p-1 = length(wshapebeta)-1 where the values are static cov
 	#   - lag0: lag 0 = same day for gamma kernel, but >0, e.g. 1e-3
 	
 	
@@ -48,7 +49,7 @@ rout_nll_block_ini <- function(par){
 	#----------------------------------------------------------------------------#
 
 	wscale <- exp(par$log_wscale) # cst, gamma shape has all the cov
-	wshapebeta <- par$wshapebeta
+	wshapebeta <- par$wshapebeta # v0.4: now includes intercept as [1]
 
 	nS <- nrow(datalist_ini$obsmat) # nb loc overall (polyg and stations)
 	nT <- ncol(datalist_ini$predmat) # not the total nb of time steps
@@ -66,7 +67,10 @@ rout_nll_block_ini <- function(par){
 			# loop over all loc excl the ones most ustr where fitted[s,]=predmat[s,]
 			for (ss in 1:length(datalist_ini$neighlist[[s]])){ # direct ustr neighbors
 				# whshape_ss <- exp(wshapebeta%*%datalist_ini$wshapecovlist[[s]][[ss]])
-				whshape_ss <- exp(sum(wshapebeta*datalist_ini$wshapecovlist[[s]][[ss]]))
+				# whshape_ss <- exp(sum(wshapebeta*datalist_ini$wshapecovlist[[s]][[ss]]))
+				whshape_ss <- exp(sum(wshapebeta[1] +
+																wshapebeta[-1]*datalist_ini$wshapecovlist[[s]][[ss]]))
+				# ^ v0.4: added intercept
 				# ^ lin comb (p->1) with log link for shape>0
 				gammadens <- dgamma(
 					x=c(datalist_ini$lag0, 1:datalist_ini$maxlag), # lag0 = same day
@@ -145,7 +149,7 @@ rout_nll_block_ini <- function(par){
 rout_nll_block <- function(par){
 	# * par vector order:
 	#   - log_wscale (1)
-	#   - wshapebeta (p)
+	#   - wshapebeta (p, now incl intercept)
 	#   - b (1), index for blocks in DataEval
 	#   - predmatprev (nS x maxlag), fitted from previous block
 	# * datalist must include:
@@ -161,7 +165,7 @@ rout_nll_block <- function(par){
 	#   - wshapecovlist: list of length nS, same ordering as neighlist, each
 	#     element being a list of numeric vectors (number of vectors is length of
 	#     the corresponding element in neighlist), each vector being of same
-	#     length p = length(wshapebeta) where the values are static cov
+	#     length p-1 = length(wshapebeta)-1 where the values are static cov
 	#   - lag0: lag 0 = same day for gamma kernel, but >0, e.g. 1e-3
 	
 	#----------------------------------------------------------------------------#
@@ -177,7 +181,7 @@ rout_nll_block <- function(par){
 	#----------------------------------------------------------------------------#
 	
 	wscale <- exp(par$log_wscale) # cst, gamma shape has all the cov
-	wshapebeta <- par$wshapebeta
+	wshapebeta <- par$wshapebeta # v0.4: now includes intercept as [1]
 	
 	nS <- nrow(datalist$obsmat) # nb loc overall (polyg and stations)
 	nT <- ncol(datalist$predmat) # total nb time points
@@ -245,7 +249,10 @@ rout_nll_block <- function(par){
 			# loop over all loc, excl the ones most ustr where fitted[s,]=predmat[s,]
 			for (ss in 1:length(datalist$neighlist[[s]])){ # direct ustr neighbors
 				# whshape_ss <- exp(wshapebeta%*%wshapecovlist[[s]][[ss]]) # wrong! missing datalist$
-				whshape_ss <- exp(sum(wshapebeta*datalist$wshapecovlist[[s]][[ss]]))
+				# whshape_ss <- exp(sum(wshapebeta*datalist$wshapecovlist[[s]][[ss]]))
+				whshape_ss <- exp(sum(wshapebeta[1] +
+																wshapebeta[-1]*datalist$wshapecovlist[[s]][[ss]]))
+				# ^ v0.4: added intercept
 				# ^ lin comb (p->1) with log link for shape>0
 				gammadens <- dgamma(
 					x=c(datalist$lag0, 1:datalist$maxlag), # lag0 = same day
@@ -290,100 +297,101 @@ rout_nll_block <- function(par){
 }
 
 
-rout_nll_block_last <- function(par){
-	# * par vector order:
-	#   - log_wscale (1)
-	#   - wshapebeta (p)
-	# * datalist_last must include:
-	#   - obsmat: numeric matrix of discharge (m3/s), no NAs, nS x (nb remaining
-	#     time points)
-	#   - obsindmat: 0-1 matrix, same dim as obsmat (to multiply elementwise)
-	#   - predmat: numeric matrix of pred discharge, no NAs, incl fitted from
-	#     previous block, nS x (maxlag + nb remaining time points)
-	#   - maxlag: integer >=1, max lag in routing from spatial neighbors
-	#   - routingorder: integer vector routing ustr -> dstr, within 1:nS but of
-	#     length <=nS since excl loc most ustr where fitted=predmat
-	#   - neighlist: list of length nS, each element being an integer vector of
-	#     values within 1:nS of direct/Markov neighbors ustr, not incl itself, so
-	#     each entry is of length within {0, ..., nS-1}
-	#   - wshapecovlist: list of length nS, same ordering as neighlist, each
-	#     element being a list of numeric vectors (number of vectors is length of
-	#     the corresponding element in neighlist), each vector being of same
-	#     length p = length(wshapebeta) where the values are static cov
-	#   - lag0: lag 0 = same day for gamma kernel, but >0, e.g. 1e-3
-	
-	#----------------------------------------------------------------------------#
-	# Inputs
-	#----------------------------------------------------------------------------#
-	
-	# getAll(par, datalist)
-	# datalist_last <- parent.frame(n=2)[['datalist_last']] # 
-	
-	
-	#----------------------------------------------------------------------------#
-	# Setup and init
-	#----------------------------------------------------------------------------#
-	
-	wscale <- exp(par$log_wscale) # cst, gamma shape has all the cov
-	wshapebeta <- par$wshapebeta
-	
-	nS <- nrow(datalist_last$obsmat) # nb loc overall (polyg and stations)
-	nT <- ncol(datalist_last$predmat) # not the total nb of time steps
-	# ^ last: ncol(predmat) = maxlag + nb remaining time points in last block
-	#   (latter which is <maxlag)
-	nT_last <- ncol(datalist_last$obsmat)
-	
-	
-	
-	#----------------------------------------------------------------------------#
-	# routing
-	#----------------------------------------------------------------------------#
-	
-	fitted <- datalist_last$predmat
-	for (t in (nT-nT_last+1):nT){
-		for (s in datalist_last$routingorder){
-			# loop over all loc, excl the ones most ustr where fitted[s,]=predmat[s,]
-			for (ss in 1:length(datalist_last$neighlist[[s]])){ # direct ustr neighbors
-				# whshape_ss <- exp(wshapebeta%*%wshapecovlist[[s]][[ss]]) # wrong! missing datalist$
-				whshape_ss <- exp(sum(wshapebeta*datalist_last$wshapecovlist[[s]][[ss]]))
-				# ^ lin comb (p->1) with log link for shape>0
-				gammadens <- dgamma(
-					x=c(datalist_last$lag0, 1:datalist_last$maxlag), # lag0 = same day
-					shape=whshape_ss, scale=wscale
-				)
-				gammadens <- gammadens/sum(gammadens) # rescale, so sum(weights) = 1
-				fitted[s,t] <- fitted[s,t] +
-					+ sum(gammadens*fitted[datalist_last$neighlist[[s]][[ss]],
-																 t-(0:datalist_last$maxlag)]) # add to pred
-				# ^ weighted comb of pred from ustr neighbors at lag 0:maxlag
-			}
-		} # for s in routingorder
-	} # for t in (maxlag+1):nT
-	
-	fitted <- fitted[, (nT-nT_last+1):nT]
-	# ^ remove previous block, now nb cols matches obsmat1 (= maxlag unless
-	#   truncated bvec)
-	
-	
-	#----------------------------------------------------------------------------#
-	# pnll eval at fitted
-	#----------------------------------------------------------------------------#
-	
-	# pnll <- sum((obsmat1-fitted)^2*obsindmat1) # sum of squared residuals
-	pnll <- sum((datalist_last$obsmat-fitted)^2*datalist_last$obsindmat)/
-		sum(datalist_last$obsindmat) # mean squared loss
-	# ^ NAs in obsmat replaced by arbitrary numeric (e.g. zero) but then
-	#   multiplied by 0 in sum so no contribution to loss function
-	
-	
-	#----------------------------------------------------------------------------#
-	# Outputs
-	#----------------------------------------------------------------------------#
-	
-	# REPORT(wscale)
-	# REPORT(wshapebeta)
-	REPORT(fitted) # fitted values on modeling scale
-	
-	return(pnll)
-}
+# rout_nll_block_last <- function(par){
+# 	# * par vector order:
+# 	#   - log_wscale (1)
+# 	#   - wshapebeta (p)
+# 	# * datalist_last must include:
+# 	#   - obsmat: numeric matrix of discharge (m3/s), no NAs, nS x (nb remaining
+# 	#     time points)
+# 	#   - obsindmat: 0-1 matrix, same dim as obsmat (to multiply elementwise)
+# 	#   - predmat: numeric matrix of pred discharge, no NAs, incl fitted from
+# 	#     previous block, nS x (maxlag + nb remaining time points)
+# 	#   - maxlag: integer >=1, max lag in routing from spatial neighbors
+# 	#   - routingorder: integer vector routing ustr -> dstr, within 1:nS but of
+# 	#     length <=nS since excl loc most ustr where fitted=predmat
+# 	#   - neighlist: list of length nS, each element being an integer vector of
+# 	#     values within 1:nS of direct/Markov neighbors ustr, not incl itself, so
+# 	#     each entry is of length within {0, ..., nS-1}
+# 	#   - wshapecovlist: list of length nS, same ordering as neighlist, each
+# 	#     element being a list of numeric vectors (number of vectors is length of
+# 	#     the corresponding element in neighlist), each vector being of same
+# 	#     length p = length(wshapebeta) where the values are static cov
+# 	#   - lag0: lag 0 = same day for gamma kernel, but >0, e.g. 1e-3
+# 	
+# 	#----------------------------------------------------------------------------#
+# 	# Inputs
+# 	#----------------------------------------------------------------------------#
+# 	
+# 	# getAll(par, datalist)
+# 	# datalist_last <- parent.frame(n=2)[['datalist_last']] # 
+# 	
+# 	
+# 	#----------------------------------------------------------------------------#
+# 	# Setup and init
+# 	#----------------------------------------------------------------------------#
+# 	
+# 	wscale <- exp(par$log_wscale) # cst, gamma shape has all the cov
+# 	wshapebeta <- par$wshapebeta
+# 	
+# 	nS <- nrow(datalist_last$obsmat) # nb loc overall (polyg and stations)
+# 	nT <- ncol(datalist_last$predmat) # not the total nb of time steps
+# 	# ^ last: ncol(predmat) = maxlag + nb remaining time points in last block
+# 	#   (latter which is <maxlag)
+# 	nT_last <- ncol(datalist_last$obsmat)
+# 	
+# 	
+# 	
+# 	#----------------------------------------------------------------------------#
+# 	# routing
+# 	#----------------------------------------------------------------------------#
+# 	
+# 	fitted <- datalist_last$predmat
+# 	for (t in (nT-nT_last+1):nT){
+# 		for (s in datalist_last$routingorder){
+# 			# loop over all loc, excl the ones most ustr where fitted[s,]=predmat[s,]
+# 			for (ss in 1:length(datalist_last$neighlist[[s]])){ # direct ustr neighbors
+# 				# whshape_ss <- exp(wshapebeta%*%wshapecovlist[[s]][[ss]]) # wrong! missing datalist$
+# 				whshape_ss <- exp(sum(wshapebeta*datalist_last$wshapecovlist[[s]][[ss]]))
+# 				# ^ lin comb (p->1) with log link for shape>0
+# 				gammadens <- dgamma(
+# 					x=c(datalist_last$lag0, 1:datalist_last$maxlag), # lag0 = same day
+# 					shape=whshape_ss, scale=wscale
+# 				)
+# 				gammadens <- gammadens/sum(gammadens) # rescale, so sum(weights) = 1
+# 				fitted[s,t] <- fitted[s,t] +
+# 					+ sum(gammadens*fitted[datalist_last$neighlist[[s]][[ss]],
+# 																 t-(0:datalist_last$maxlag)]) # add to pred
+# 				# ^ weighted comb of pred from ustr neighbors at lag 0:maxlag
+# 			}
+# 		} # for s in routingorder
+# 	} # for t in (maxlag+1):nT
+# 	
+# 	fitted <- fitted[, (nT-nT_last+1):nT]
+# 	# ^ remove previous block, now nb cols matches obsmat1 (= maxlag unless
+# 	#   truncated bvec)
+# 	
+# 	
+# 	#----------------------------------------------------------------------------#
+# 	# pnll eval at fitted
+# 	#----------------------------------------------------------------------------#
+# 	
+# 	# pnll <- sum((obsmat1-fitted)^2*obsindmat1) # sum of squared residuals
+# 	pnll <- sum((datalist_last$obsmat-fitted)^2*datalist_last$obsindmat)/
+# 		sum(datalist_last$obsindmat) # mean squared loss
+# 	# ^ NAs in obsmat replaced by arbitrary numeric (e.g. zero) but then
+# 	#   multiplied by 0 in sum so no contribution to loss function
+# 	
+# 	
+# 	#----------------------------------------------------------------------------#
+# 	# Outputs
+# 	#----------------------------------------------------------------------------#
+# 	
+# 	# REPORT(wscale)
+# 	# REPORT(wshapebeta)
+# 	REPORT(fitted) # fitted values on modeling scale
+# 	
+# 	return(pnll)
+# }
+
 # end routnll_blockwise
