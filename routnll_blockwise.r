@@ -1,7 +1,12 @@
 # routnll blockwise: neg log lik for routing | v0.5
 # * Change log:
-#    - v0.5: removed as.numeric coercion for par$predmatprev, was creating weird
+#    - v0.5:
+#      * removed as.numeric coercion for par$predmatprev, was creating weird
 #            differences between ob$fn() and REPORTed objects.
+#      * default loss function now is sum of squared residuals, so that
+#        routnll_blockwise_firsteval.r and routnll_blockwise.r now process
+#        obj_ini$fn and obj_b$fn as a sum and then divide by sum(obsindmat01)
+#        so that overall fn is the correct mean squared error.
 #    - v0.4: added intercept to wshapebeta
 #    - v0.3: clean up notation
 #    - v0.2: initial version, forked from routmod/rout_nll v0.2
@@ -105,10 +110,11 @@ rout_nll_block_ini <- function(par){
 	# 	}
 	# }
 
-	# pnll <- sum((datalist_ini$obsmat-fitted)^2*datalist_ini$obsindmat)
-	# # ^ sum of squared residuals
-	pnll <- sum((datalist_ini$obsmat-fitted)^2*datalist_ini$obsindmat)/
-		sum(datalist_ini$obsindmat) # mean squared loss
+	pnll <- sum((datalist_ini$obsmat-fitted)^2*datalist_ini$obsindmat)
+	# ^ sum of squared residuals
+	# pnll <- sum((datalist_ini$obsmat-fitted)^2*datalist_ini$obsindmat)/
+	# 	sum(datalist_ini$obsindmat) # mean squared loss
+
 	# ^ NAs in obsmat replaced by arbitrary numeric (e.g. zero) but then
 	#   multiplied by 0 in sum so no contribution to loss function
 
@@ -285,8 +291,8 @@ rout_nll_block <- function(par){
 	# pnll eval at fitted
 	#----------------------------------------------------------------------------#
 	
-	# pnll <- sum((obsmat1-fitted)^2*obsindmat1) # sum of squared residuals
-	pnll <- sum((obsmat1-fitted)^2*obsindmat1)/sum(obsindmat1) # mean squared loss
+	pnll <- sum((obsmat1-fitted)^2*obsindmat1) # sum of squared residuals
+	# pnll <- sum((obsmat1-fitted)^2*obsindmat1)/sum(obsindmat1) # mean squared loss
 
 	# pnll <- sum(fitted) # test
 	# pnll <- fitted[4393,5] # test

@@ -1,5 +1,8 @@
 # routnll_blockwise_eval: eval fn and gr of rounll_blockwise | v0.4
 # * Change log:
+#    - v0.5: routnll_blockwise_ini and routnll_blockwise now output sum of
+#      squared residuals as defualt loss, so that here we sum them and then
+#      output $fn as an overall mean squared error
 #    - v0.4: added intercept to wshapebeta (doesn't change anything below)
 #    - v0.3: initial version
 
@@ -57,6 +60,8 @@ routnll_blockwise_eval <- function(parvec,
 	
 	objfn <- obj_ini$fn(unlist(parlist_ini))             # ini
 	objgr <- as.numeric(obj_ini$gr(unlist(parlist_ini))) # ini
+	# ^ v0.5: sum of squared resid
+
 	# print(objfn)
 	# print(str(objgr,1))
 	
@@ -112,6 +117,7 @@ routnll_blockwise_eval <- function(parvec,
 	
 	objfn <- objfn + obj_b$fn(unlist(parlist))
 	objgr <- objgr + as.numeric(obj_b$gr(unlist(parlist))[c(1,1:lenbeta+1)])
+	# ^ v0.5: sum of squared resid
 	
 	# system.time(
 	rep_b <- obj_b$rep(unlist(parlist))
@@ -154,6 +160,7 @@ routnll_blockwise_eval <- function(parvec,
 		
 		objfn <- objfn + obj_b$fn(unlist(parlist))
 		objgr <- objgr + as.numeric(obj_b$gr(unlist(parlist))[c(1,1:lenbeta+1)])
+		# ^ v0.5: sum of squared resid
 		
 		# system.time(
 		rep_b <- obj_b$rep(unlist(parlist))
@@ -245,6 +252,11 @@ routnll_blockwise_eval <- function(parvec,
 	
 	
 	### // output ----
+	n.active <- sum(datalist$obsindmat[,(datalist$maxlag+1):nT])
+	objfn <- objfn/n.active
+	objgr <- objgr/n.active
+	# ^ sum of squared resid => MSE
+
 	if (outputfitted){
 		out <- list('fn'=objfn,'gr'=objgr,'fitted'=rpredmat)
 	}	else {
@@ -252,8 +264,6 @@ routnll_blockwise_eval <- function(parvec,
 		# better within optim
 	}
 	
-	return(out)
-	# return(9.1)
-	
+	return(out)	
 }
 # end routnll_blockwise_eval

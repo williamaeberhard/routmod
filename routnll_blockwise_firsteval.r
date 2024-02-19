@@ -1,5 +1,8 @@
 # routnll_blockwise_eval: eval fn and gr of rounll_blockwise | v0.4
 # * Change log:
+#    - v0.5: routnll_blockwise_ini and routnll_blockwise now output sum of
+#      squared residuals as defualt loss, so that here we sum them and then
+#      output $fn as an overall mean squared error
 #    - v0.4: added intercept to wshapebeta (doesn't change anything below)
 #    - v0.3: initial version
 
@@ -55,7 +58,7 @@ obj_ini <- MakeADFun(
 
 # print(str(obj_ini,1))
 
-objfn <- obj_ini$fn(unlist(parlist_ini))             # ini
+objfn <- obj_ini$fn(unlist(parlist_ini))             # ini, sum of squared resid
 objgr <- as.numeric(obj_ini$gr(unlist(parlist_ini))) # ini
 # print(objfn)
 # print(str(objgr,1))
@@ -110,7 +113,7 @@ suppressWarnings(
 # ^ 11-13 s | MBP13 Toy4 nS=9445 maxlag=2
 # ^  | MBP13 Toy4 nS=9445 maxlag=5
 
-objfn <- objfn + obj_b$fn(unlist(parlist))
+objfn <- objfn + obj_b$fn(unlist(parlist)) # sum of squared resid
 objgr <- objgr + as.numeric(obj_b$gr(unlist(parlist))[c(1,1:lenbeta+1)])
 
 # system.time(
@@ -152,7 +155,7 @@ for (b in 3:maxb){
 		'predmatprev'=predmatprev # update fitted from previous block
 	)
 	
-	objfn <- objfn + obj_b$fn(unlist(parlist))
+	objfn <- objfn + obj_b$fn(unlist(parlist)) # sum of squared resid
 	objgr <- objgr + as.numeric(obj_b$gr(unlist(parlist))[c(1,1:lenbeta+1)])
 	
 	# system.time(
@@ -253,6 +256,11 @@ for (b in 3:maxb){
 # }
 
 # return(out)
+
+n.active <- sum(datalist$obsindmat[,(datalist$maxlag+1):nT])
+objfn <- objfn/n.active
+objgr <- objgr/n.active
+# ^ sum of squared resid => MSE
 
 fit1 <- list('fn'=objfn,'gr'=objgr)
 # }
