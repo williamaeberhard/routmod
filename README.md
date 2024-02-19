@@ -8,8 +8,11 @@ routmod: R code for routing module to improve river discharge predictions along 
 
 ### Version History
 
-This is routmod version 0.4
+This is routmod version 0.5.
 
+* v0.5:
+  - fixed as.numeric coercion in rout_nll_block_ini and rout_nll_block functions.
+  - changed default loss in routnll_blockwise_firsteval.r and routnll_blockwise_eval.r to be overall MSE (before was a sum of blockwise MSE, not great).
 * v0.4:
   - added intercept to wshapebeta in routnll_blockwise.r. Made notes in routnll_blockwise_firsteval.r and routnll_blockwise_eval.r although nothing changed there.
 * v0.3:
