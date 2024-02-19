@@ -1,5 +1,7 @@
-# routnll blockwise: neg log lik for routing | v0.4
+# routnll blockwise: neg log lik for routing | v0.5
 # * Change log:
+#    - v0.5: removed as.numeric coercion for par$predmatprev, was creating weird
+#            differences between ob$fn() and REPORTed objects.
 #    - v0.4: added intercept to wshapebeta
 #    - v0.3: clean up notation
 #    - v0.2: initial version, forked from routmod/rout_nll v0.2
@@ -190,9 +192,11 @@ rout_nll_block <- function(par){
 	# 	matrix(as.double(i),nS)
 	# },x=par$predmatprev)
 	# # ^ just to declare it as data
-	predmatprev1 <- matrix(as.numeric(par$predmatprev),nS)
+
+	# predmatprev1 <- matrix(as.numeric(par$predmatprev),nS) # <= bad!
+	predmatprev1 <- par$predmatprev
 	
-	predmat1 <- DataEval(f=function(i){
+	predmat11 <- DataEval(f=function(i){
 		# bvec <- (1-datalist$maxlag):datalist$maxlag +
 		# 	+ (i-2)*datalist$maxlag +
 		# 	+ 2*datalist$maxlag
@@ -202,8 +206,11 @@ rout_nll_block <- function(par){
 		# if (bvec[datalist$maxlag]>nT){
 		# 	bvec <- bvec[-which(bvec>nT)] # last block: cap at nT
 		# }
-		return(cbind(predmatprev1, datalist$predmat[,bvec])) # par$predmatprev
+		# return(cbind(predmatprev1, datalist$predmat[,bvec])) # par$predmatprev
+		return(datalist$predmat[,bvec]) # par$predmatprev
 	},x=par$b)
+	predmat1 <- cbind(predmatprev1, predmat11)
+
 	obsmat1 <- DataEval(f=function(i){
 		bvec <- 1:datalist$maxlag +
 			+ (i-2)*datalist$maxlag +
@@ -213,6 +220,7 @@ rout_nll_block <- function(par){
 		# }
 		return(datalist$obsmat[,bvec])
 	},x=par$b)
+
 	obsindmat1 <- DataEval(f=function(i){
 		bvec <- 1:datalist$maxlag +
 			+ (i-2)*datalist$maxlag +
@@ -279,6 +287,10 @@ rout_nll_block <- function(par){
 	
 	# pnll <- sum((obsmat1-fitted)^2*obsindmat1) # sum of squared residuals
 	pnll <- sum((obsmat1-fitted)^2*obsindmat1)/sum(obsindmat1) # mean squared loss
+
+	# pnll <- sum(fitted) # test
+	# pnll <- fitted[4393,5] # test
+
 	# ^ NAs in obsmat replaced by arbitrary numeric (e.g. zero) but then
 	#   multiplied by 0 in sum so no contribution to loss function
 	
@@ -291,8 +303,12 @@ rout_nll_block <- function(par){
 	# REPORT(wshapebeta)
 	# REPORT(par$b)
 	REPORT(fitted) # fitted values on modeling scale
-	# REPORT(predmatprev1) # to check if prematprev passed correctly as param
 	
+	# REPORT(predmatprev1) # to check if prematprev passed correctly as param
+	# REPORT(obsmat1)
+	# # REPORT(obsindmat1)
+	# REPORT(predmat1)
+
 	return(pnll)
 }
 
