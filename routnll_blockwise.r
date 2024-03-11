@@ -1,5 +1,8 @@
-# routnll blockwise: neg log lik for routing | v0.5
+# routnll blockwise: neg log lik for routing | v0.6
 # * Change log:
+#    - v0.6: added option for different loss function, MSE on sqrt discharge
+#      scale if datalist_ini$losscode==1. But fitted remains on original (raw)
+#      discharge scale
 #    - v0.5:
 #      * removed as.numeric coercion for par$predmatprev, was creating weird
 #            differences between ob$fn() and REPORTed objects.
@@ -67,7 +70,7 @@ rout_nll_block_ini <- function(par){
 	# routing
 	#----------------------------------------------------------------------------#
 
-	fitted <- datalist_ini$predmat
+	fitted <- datalist_ini$predmat # v=0.6: remains on raw discharge scale
 	# for (t in (1+datalist_ini$maxlag):nT){ # ini: cond on 1st maxlag obs
 	for (t in datalist_ini$tvec){ # ini: cond on 1st maxlag obs
 		for (s in datalist_ini$routingorder){
@@ -110,8 +113,14 @@ rout_nll_block_ini <- function(par){
 	# 	}
 	# }
 
-	pnll <- sum((datalist_ini$obsmat-fitted)^2*datalist_ini$obsindmat)
-	# ^ sum of squared residuals
+	if (datalist_ini$losscode==0){
+		# 0 = SSE on raw discharge scale
+		pnll <- sum((datalist_ini$obsmat-fitted)^2*datalist_ini$obsindmat)
+	} else (datalist_ini$losscode==1){
+		# 1 = SSE on sqrt discharge scale, assuming obsmat is sqrt discharge
+		pnll <- sum((datalist_ini$obsmat-sqrt(fitted))^2*datalist_ini$obsindmat)
+	}
+	
 	# pnll <- sum((datalist_ini$obsmat-fitted)^2*datalist_ini$obsindmat)/
 	# 	sum(datalist_ini$obsindmat) # mean squared loss
 
@@ -291,7 +300,14 @@ rout_nll_block <- function(par){
 	# pnll eval at fitted
 	#----------------------------------------------------------------------------#
 	
-	pnll <- sum((obsmat1-fitted)^2*obsindmat1) # sum of squared residuals
+	if (datalist$losscode==0){
+		# 0 = SSE on raw discharge scale
+		pnll <- sum((obsmat1-fitted)^2*obsindmat1)
+	} else (datalist$losscode==1){
+		# 1 = SSE on sqrt discharge scale, assuming obsmat is sqrt discharge
+		pnll <- sum((obsmat1-sqrt(fitted))^2*obsindmat1)
+	}
+	
 	# pnll <- sum((obsmat1-fitted)^2*obsindmat1)/sum(obsindmat1) # mean squared loss
 
 	# pnll <- sum(fitted) # test
@@ -317,103 +333,3 @@ rout_nll_block <- function(par){
 
 	return(pnll)
 }
-
-
-# rout_nll_block_last <- function(par){
-# 	# * par vector order:
-# 	#   - log_wscale (1)
-# 	#   - wshapebeta (p)
-# 	# * datalist_last must include:
-# 	#   - obsmat: numeric matrix of discharge (m3/s), no NAs, nS x (nb remaining
-# 	#     time points)
-# 	#   - obsindmat: 0-1 matrix, same dim as obsmat (to multiply elementwise)
-# 	#   - predmat: numeric matrix of pred discharge, no NAs, incl fitted from
-# 	#     previous block, nS x (maxlag + nb remaining time points)
-# 	#   - maxlag: integer >=1, max lag in routing from spatial neighbors
-# 	#   - routingorder: integer vector routing ustr -> dstr, within 1:nS but of
-# 	#     length <=nS since excl loc most ustr where fitted=predmat
-# 	#   - neighlist: list of length nS, each element being an integer vector of
-# 	#     values within 1:nS of direct/Markov neighbors ustr, not incl itself, so
-# 	#     each entry is of length within {0, ..., nS-1}
-# 	#   - wshapecovlist: list of length nS, same ordering as neighlist, each
-# 	#     element being a list of numeric vectors (number of vectors is length of
-# 	#     the corresponding element in neighlist), each vector being of same
-# 	#     length p = length(wshapebeta) where the values are static cov
-# 	#   - lag0: lag 0 = same day for gamma kernel, but >0, e.g. 1e-3
-# 	
-# 	#----------------------------------------------------------------------------#
-# 	# Inputs
-# 	#----------------------------------------------------------------------------#
-# 	
-# 	# getAll(par, datalist)
-# 	# datalist_last <- parent.frame(n=2)[['datalist_last']] # 
-# 	
-# 	
-# 	#----------------------------------------------------------------------------#
-# 	# Setup and init
-# 	#----------------------------------------------------------------------------#
-# 	
-# 	wscale <- exp(par$log_wscale) # cst, gamma shape has all the cov
-# 	wshapebeta <- par$wshapebeta
-# 	
-# 	nS <- nrow(datalist_last$obsmat) # nb loc overall (polyg and stations)
-# 	nT <- ncol(datalist_last$predmat) # not the total nb of time steps
-# 	# ^ last: ncol(predmat) = maxlag + nb remaining time points in last block
-# 	#   (latter which is <maxlag)
-# 	nT_last <- ncol(datalist_last$obsmat)
-# 	
-# 	
-# 	
-# 	#----------------------------------------------------------------------------#
-# 	# routing
-# 	#----------------------------------------------------------------------------#
-# 	
-# 	fitted <- datalist_last$predmat
-# 	for (t in (nT-nT_last+1):nT){
-# 		for (s in datalist_last$routingorder){
-# 			# loop over all loc, excl the ones most ustr where fitted[s,]=predmat[s,]
-# 			for (ss in 1:length(datalist_last$neighlist[[s]])){ # direct ustr neighbors
-# 				# whshape_ss <- exp(wshapebeta%*%wshapecovlist[[s]][[ss]]) # wrong! missing datalist$
-# 				whshape_ss <- exp(sum(wshapebeta*datalist_last$wshapecovlist[[s]][[ss]]))
-# 				# ^ lin comb (p->1) with log link for shape>0
-# 				gammadens <- dgamma(
-# 					x=c(datalist_last$lag0, 1:datalist_last$maxlag), # lag0 = same day
-# 					shape=whshape_ss, scale=wscale
-# 				)
-# 				gammadens <- gammadens/sum(gammadens) # rescale, so sum(weights) = 1
-# 				fitted[s,t] <- fitted[s,t] +
-# 					+ sum(gammadens*fitted[datalist_last$neighlist[[s]][[ss]],
-# 																 t-(0:datalist_last$maxlag)]) # add to pred
-# 				# ^ weighted comb of pred from ustr neighbors at lag 0:maxlag
-# 			}
-# 		} # for s in routingorder
-# 	} # for t in (maxlag+1):nT
-# 	
-# 	fitted <- fitted[, (nT-nT_last+1):nT]
-# 	# ^ remove previous block, now nb cols matches obsmat1 (= maxlag unless
-# 	#   truncated bvec)
-# 	
-# 	
-# 	#----------------------------------------------------------------------------#
-# 	# pnll eval at fitted
-# 	#----------------------------------------------------------------------------#
-# 	
-# 	# pnll <- sum((obsmat1-fitted)^2*obsindmat1) # sum of squared residuals
-# 	pnll <- sum((datalist_last$obsmat-fitted)^2*datalist_last$obsindmat)/
-# 		sum(datalist_last$obsindmat) # mean squared loss
-# 	# ^ NAs in obsmat replaced by arbitrary numeric (e.g. zero) but then
-# 	#   multiplied by 0 in sum so no contribution to loss function
-# 	
-# 	
-# 	#----------------------------------------------------------------------------#
-# 	# Outputs
-# 	#----------------------------------------------------------------------------#
-# 	
-# 	# REPORT(wscale)
-# 	# REPORT(wshapebeta)
-# 	REPORT(fitted) # fitted values on modeling scale
-# 	
-# 	return(pnll)
-# }
-
-# end routnll_blockwise
