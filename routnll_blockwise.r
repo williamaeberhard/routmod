@@ -116,7 +116,7 @@ rout_nll_block_ini <- function(par){
 	if (datalist_ini$losscode==0){
 		# 0 = SSE on raw discharge scale
 		pnll <- sum((datalist_ini$obsmat-fitted)^2*datalist_ini$obsindmat)
-	} else (datalist_ini$losscode==1){
+	} else if (datalist_ini$losscode==1){
 		# 1 = SSE on sqrt discharge scale, assuming obsmat is sqrt discharge
 		pnll <- sum((datalist_ini$obsmat-sqrt(fitted))^2*datalist_ini$obsindmat)
 	}
@@ -303,7 +303,7 @@ rout_nll_block <- function(par){
 	if (datalist$losscode==0){
 		# 0 = SSE on raw discharge scale
 		pnll <- sum((obsmat1-fitted)^2*obsindmat1)
-	} else (datalist$losscode==1){
+	} else if (datalist$losscode==1){
 		# 1 = SSE on sqrt discharge scale, assuming obsmat is sqrt discharge
 		pnll <- sum((obsmat1-sqrt(fitted))^2*obsindmat1)
 	}
