@@ -8,8 +8,10 @@ routmod: R code for routing module to improve river discharge predictions along 
 
 ### Version History
 
-This is routmod version 0.6.
+This is routmod version 0.7.
 
+* v0.7:
+  - routnll_blockwise.r: added option datalist$losscode=2 for MSE on runoff=discharge/area scale. as in v0.6, $fitted remains on raw discharge scale.
 * v0.6:
   - added option for different loss functions in routnll_blockwise, through datalist_ini$losscode and datalist$losscode. For now only 0 (MSE on raw discharge scale) and 1 (MSE on sqrt discharge scale) are implemented. $fitted remains on raw discharge scale regardless of losscode, so that all post-processing is unaffected.
 * v0.5:
