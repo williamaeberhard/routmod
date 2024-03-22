@@ -129,7 +129,7 @@ rout_nll_block_ini <- function(par){
 		pnll <- sum((datalist_ini$obsmat-fitted/datalist_ini$areamat)^2*
 									datalist_ini$obsindmat)
 		# ^ areamat already has 8.64e7 coef in it for mm/day
-	} if (datalist_ini$losscode==3){
+	} else if (datalist_ini$losscode==3){
 		# 3 = MSE on sqrt runoff scale
 		pnll <- sum((datalist_ini$obsmat-sqrt(fitted/datalist_ini$areamat))^2*
 									datalist_ini$obsindmat)
