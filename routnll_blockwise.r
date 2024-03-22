@@ -1,7 +1,8 @@
-# routnll blockwise: neg log lik for routing | v0.7
+# routnll blockwise: neg log lik for routing | v0.8
 # * Change log:
-#    - v0.7: added datalist_ini$losscode==2 for runoff scale (mm/day), assuming
-#      datalist_ini$areamat has same dim as datalist_ini$obsmat
+#    - v0.8: added datalist_ini$losscode==3 for MSE on sqrt runoff scale
+#    - v0.7: added datalist_ini$losscode==2 for MSE on runoff scale (mm/day),
+#      assuming datalist_ini$areamat has same dim as datalist_ini$obsmat
 #    - v0.6: added option for different loss function, MSE on sqrt discharge
 #      scale if datalist_ini$losscode==1. But fitted remains on original (raw)
 #      discharge scale
@@ -116,23 +117,25 @@ rout_nll_block_ini <- function(par){
 	# }
 
 	if (datalist_ini$losscode==0){
-		# 0 = SSE on raw discharge scale
+		# 0 = MSE on raw discharge scale
 		pnll <- sum((datalist_ini$obsmat-fitted)^2*datalist_ini$obsindmat)
 	} else if (datalist_ini$losscode==1){
-		# 1 = SSE on sqrt discharge scale, assuming obsmat is sqrt discharge
+		# 1 = MSE on sqrt discharge scale, assuming obsmat is sqrt discharge
 		pnll <- sum((datalist_ini$obsmat-sqrt(fitted))^2*datalist_ini$obsindmat)
 	} else if (datalist_ini$losscode==2){
-		# 2 = SSE on runoff=discharge/area*8.64e7 scale (mm/day), assuming obsmat is
+		# 2 = MSE on runoff=discharge/area*8.64e7 scale (mm/day), assuming obsmat is
 		#     runoff and areamat is same dim as obsmat (rows are same area
 		#     values, by rgs)
 		pnll <- sum((datalist_ini$obsmat-fitted/datalist_ini$areamat)^2*
 									datalist_ini$obsindmat)
 		# ^ areamat already has 8.64e7 coef in it for mm/day
+	} if (datalist_ini$losscode==3){
+		# 3 = MSE on sqrt runoff scale
+		pnll <- sum((datalist_ini$obsmat-sqrt(fitted/datalist_ini$areamat))^2*
+									datalist_ini$obsindmat)
+		# ^ areamat already has 8.64e7 coef in it for mm/day
 	}
 	
-	# pnll <- sum((datalist_ini$obsmat-fitted)^2*datalist_ini$obsindmat)/
-	# 	sum(datalist_ini$obsindmat) # mean squared loss
-
 	# ^ NAs in obsmat replaced by arbitrary numeric (e.g. zero) but then
 	#   multiplied by 0 in sum so no contribution to loss function
 
@@ -140,33 +143,6 @@ rout_nll_block_ini <- function(par){
 	#----------------------------------------------------------------------------#
 	# Outputs
 	#----------------------------------------------------------------------------#
-	
-	
-	# REPORT(wscale)
-	# REPORT(wshapebeta)
-	# REPORT(nT)
-	# REPORT(datalist_ini$tvec)
-	
-	# # REPORT(ls(parent.frame(n=1)))
-	# REPORT(parent.frame()[['p']])
-	# REPORT(parent.frame()[['par']])
-	
-	# testout <- get(x='nT',pos=-1)
-	# testout <- 1:get(x='nT',pos=1)
-	# testout <- seq(1,get(x='nT'),1)
-	# testout <- vv:1
-	# testout <- seq(from=1, to=10, by=1)
-	# REPORT(testout)
-	
-	# REPORT((1 + datalist_ini$maxlag):(nT))
-	
-	# REPORT(str(datalist_ini,1))
-	# REPORT(maxl+1)
-	
-	# REPORT(sum(datalist_ini$obsmat))
-	# REPORT(pnll)
-	
-	# pnll <- 12.3
 	
 	REPORT(fitted) # fitted values on modeling scale
 	return(pnll)
@@ -280,8 +256,6 @@ rout_nll_block <- function(par){
 		for (s in datalist$routingorder){
 			# loop over all loc, excl the ones most ustr where fitted[s,]=predmat[s,]
 			for (ss in 1:length(datalist$neighlist[[s]])){ # direct ustr neighbors
-				# whshape_ss <- exp(wshapebeta%*%wshapecovlist[[s]][[ss]]) # wrong! missing datalist$
-				# whshape_ss <- exp(sum(wshapebeta*datalist$wshapecovlist[[s]][[ss]]))
 				whshape_ss <- exp(sum(wshapebeta[1] +
 																wshapebeta[-1]*datalist$wshapecovlist[[s]][[ss]]))
 				# ^ v0.4: added intercept
@@ -320,13 +294,11 @@ rout_nll_block <- function(par){
 		#     areamat is same dim as obsmat1 (rows are same area values, by rgs)
 		pnll <- sum((obsmat1-fitted/datalist$areamat)^2*obsindmat1)
 		# ^ areamat already has 8.64e7 coef in it for mm/day
+	} else if (datalist_ini$losscode==3){
+		pnll <- sum((obsmat1-sqrt(fitted/datalist$areamat))^2*obsindmat1)
+		# ^ areamat already has 8.64e7 coef in it for mm/day
 	}
 	
-	# pnll <- sum((obsmat1-fitted)^2*obsindmat1)/sum(obsindmat1) # mean squared loss
-
-	# pnll <- sum(fitted) # test
-	# pnll <- fitted[4393,5] # test
-
 	# ^ NAs in obsmat replaced by arbitrary numeric (e.g. zero) but then
 	#   multiplied by 0 in sum so no contribution to loss function
 	
@@ -335,15 +307,7 @@ rout_nll_block <- function(par){
 	# Outputs
 	#----------------------------------------------------------------------------#
 	
-	# REPORT(wscale)
-	# REPORT(wshapebeta)
-	# REPORT(par$b)
 	REPORT(fitted) # fitted values on modeling scale
 	
-	# REPORT(predmatprev1) # to check if prematprev passed correctly as param
-	# REPORT(obsmat1)
-	# # REPORT(obsindmat1)
-	# REPORT(predmat1)
-
 	return(pnll)
 }
