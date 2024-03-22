@@ -1,6 +1,6 @@
 # routnll blockwise: neg log lik for routing | v0.7
 # * Change log:
-#    - v0.7: added datalist_ini$losscode==2 for runoff scale, assuming
+#    - v0.7: added datalist_ini$losscode==2 for runoff scale (mm/day), assuming
 #      datalist_ini$areamat has same dim as datalist_ini$obsmat
 #    - v0.6: added option for different loss function, MSE on sqrt discharge
 #      scale if datalist_ini$losscode==1. But fitted remains on original (raw)
@@ -122,10 +122,12 @@ rout_nll_block_ini <- function(par){
 		# 1 = SSE on sqrt discharge scale, assuming obsmat is sqrt discharge
 		pnll <- sum((datalist_ini$obsmat-sqrt(fitted))^2*datalist_ini$obsindmat)
 	} else if (datalist_ini$losscode==2){
-		# 2 = SSE on runoff=dischareg/area scale, assuming obsmat is runoff and
-		#     areamat is same dim as obsmat (rows are same area values, by rgs)
+		# 2 = SSE on runoff=discharge/area*8.64e7 scale (mm/day), assuming obsmat is
+		#     runoff and areamat is same dim as obsmat (rows are same area
+		#     values, by rgs)
 		pnll <- sum((datalist_ini$obsmat-fitted/datalist_ini$areamat)^2*
 									datalist_ini$obsindmat)
+		# ^ areamat already has 8.64e7 coef in it for mm/day
 	}
 	
 	# pnll <- sum((datalist_ini$obsmat-fitted)^2*datalist_ini$obsindmat)/
@@ -317,6 +319,7 @@ rout_nll_block <- function(par){
 		# 2 = SSE on runoff=dischareg/area scale, assuming obsmat is runoff and
 		#     areamat is same dim as obsmat1 (rows are same area values, by rgs)
 		pnll <- sum((obsmat1-fitted/datalist$areamat)^2*obsindmat1)
+		# ^ areamat already has 8.64e7 coef in it for mm/day
 	}
 	
 	# pnll <- sum((obsmat1-fitted)^2*obsindmat1)/sum(obsindmat1) # mean squared loss
