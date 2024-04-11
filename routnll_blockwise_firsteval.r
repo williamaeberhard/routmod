@@ -1,5 +1,6 @@
-# routnll_blockwise_eval: eval fn and gr of rounll_blockwise | v0.4
+# routnll_blockwise_eval: eval fn and gr of rounll_blockwise | v0.9
 # * Change log:
+#    - v0.9: matching routnll_blockwise.r v0.9 with conditioning on lake status
 #    - v0.5: routnll_blockwise_ini and routnll_blockwise now output sum of
 #      squared residuals as defualt loss, so that here we sum them and then
 #      output $fn as an overall mean squared error
@@ -22,7 +23,7 @@ rpredmat <- predmat # routed predictions
 
 parvec <- parvec1
 # ^ v0.4: now incl intercept as [2], log_wscale remains [1]
-
+# ^ v0.9: c(log_wscale, par0, par1), both par incl intercept (2p+1)
 
 ### // ini ----
 # ini: first maxlag time points on which we condition, then first block of

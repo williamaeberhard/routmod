@@ -1,17 +1,13 @@
-# routnll_blockwise_eval: eval fn and gr of rounll_blockwise | v0.4
+# routnll_blockwise_eval: eval fn and gr of rounll_blockwise | v0.9
 # * Change log:
+#    - v0.9: matching routnll_blockwise.r v0.9 with conditioning on lake status
 #    - v0.5: routnll_blockwise_ini and routnll_blockwise now output sum of
 #      squared residuals as defualt loss, so that here we sum them and then
 #      output $fn as an overall mean squared error
 #    - v0.4: added intercept to wshapebeta (doesn't change anything below)
 #    - v0.3: initial version
 
-routnll_blockwise_eval <- function(parvec,
-																	 # obsmat01, obsindmat01,
-																	 predmat,
-																	 # routingorder, neighlist, wshapecovlist,
-																	 # lag0=1e-3,
-																	 maxlag, outputfitted=FALSE){
+routnll_blockwise_eval <- function(parvec, predmat, maxlag, outputfitted=FALSE){
 	
 	### // setup ----
 	nT <- ncol(predmat)
@@ -60,7 +56,6 @@ routnll_blockwise_eval <- function(parvec,
 	
 	objfn <- obj_ini$fn(unlist(parlist_ini))             # ini
 	objgr <- as.numeric(obj_ini$gr(unlist(parlist_ini))) # ini
-	# ^ v0.5: sum of squared resid
 
 	# print(objfn)
 	# print(str(objgr,1))
