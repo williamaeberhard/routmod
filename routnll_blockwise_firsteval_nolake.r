@@ -1,18 +1,7 @@
-# routnll_blockwise_firsteval: eval fn and gr of rounll_blockwise | v0.9
+# routnll_blockwise_firsteval_nolake: eval fn and gr of rounll_blockwise | v0.9
 # * Change log:
-#    - v0.9: matching routnll_blockwise.r v0.9 with conditioning on lake status
-#    - v0.5: routnll_blockwise_ini and routnll_blockwise now output sum of
-#      squared residuals as defualt loss, so that here we sum them and then
-#      output $fn as an overall mean squared error
-#    - v0.4: added intercept to wshapebeta (doesn't change anything below)
-#    - v0.3: initial version
+#    - v0.9: initial version, forked from routnll_blockwise_firsteval v0.9
 
-# routnll_blockwise_eval <- function(parvec,
-# 																	 # obsmat01, obsindmat01,
-# 																	 predmat,
-# 																	 # routingorder, neighlist, wshapecovlist,
-# 																	 # lag0=1e-3,
-# 																	 maxlag, outputfitted=FALSE){
 
 ### // setup ----
 nT <- ncol(predmat)
@@ -22,8 +11,8 @@ if (!is.whole(nT/maxlag)){
 rpredmat <- predmat # routed predictions
 
 parvec <- parvec1
-# ^ v0.4: now incl intercept as [2], log_wscale remains [1]
-# ^ v0.9: c(log_wscale, par0, par1), both par incl intercept (2p+1)
+# ^ v0.9: c(log_wscale, intercept, coef for cov)
+
 
 ### // ini ----
 # ini: first maxlag time points on which we condition, then first block of
@@ -49,10 +38,8 @@ lenbeta <- length(parlist_ini$wshapebeta)
 # 	'tvec'=tvec
 # )
 
-# assign(x='datalist_ini',value=datalist_ini,pos=1) # assign to calling envir
-
 obj_ini <- MakeADFun(
-	func = rout_nll_block_ini,
+	func = rout_nll_block_nolake_ini,
 	parameters = parlist_ini,
 	silent = T
 )
@@ -105,14 +92,12 @@ parlist <- list(
 # system.time(
 suppressWarnings(
 	obj_b <- MakeADFun(
-		func = rout_nll_block,
+		func = rout_nll_block_nolake,
 		parameters = parlist,
 		silent = T
 	)
-) # ^ imaginary parts discarded in as.numeric(par$predmatprev)
+) # 
 # )
-# ^ 11-13 s | MBP13 Toy4 nS=9445 maxlag=2
-# ^  | MBP13 Toy4 nS=9445 maxlag=5
 
 objfn <- objfn + obj_b$fn(unlist(parlist)) # sum of squared resid
 objgr <- objgr + as.numeric(obj_b$gr(unlist(parlist))[c(1,1:lenbeta+1)])
@@ -120,7 +105,6 @@ objgr <- objgr + as.numeric(obj_b$gr(unlist(parlist))[c(1,1:lenbeta+1)])
 # system.time(
 rep_b <- obj_b$rep(unlist(parlist))
 # )
-# ^ 0.3s | MBP13 Toy4 nS=9445 maxlag=2
 
 # head(rpredmat[,1:datalist$maxlag+(b-2)*datalist$maxlag+2*datalist$maxlag])
 # head(rep_b$fitted)
@@ -162,7 +146,6 @@ for (b in 3:maxb){
 	# system.time(
 	rep_b <- obj_b$rep(unlist(parlist))
 	# )
-	# ^ 0.3s | MBP13 Toy4 nS=9445 maxlag=2
 	
 	# summary(predmatprev)
 	# summary(rep_b$predmatprev1)
@@ -177,74 +160,7 @@ for (b in 3:maxb){
 	
 	# predmatprev1_prevb <- rep_b$predmatprev1
 } # for b in 3:maxb
-# } else {
-# nT is not a multiple of maxlag, last block is not complete, need to call
-# rout_nll_block_last
-# 
-# stop('nT must be a multiple of maxlag (for now)')
-# 
-# maxb <- floor(nT/maxlag) #
-# 
-# for (b in 3:(maxb-1)){
-# 	parlist <- list(
-# 		'log_wscale'=parlist_ini$log_wscale, # parvec[1],
-# 		'wshapebeta'=parlist_ini$wshapebeta, # parvec[2],
-# 		'b'=b,
-# 		'predmatprev'=predmatprev # update fitted from previous block
-# 	)
-# 
-# 	objfn <- objfn + obj_b$fn(unlist(parlist))
-# 	objgr <- objgr + as.numeric(obj_b$gr(unlist(parlist))[c(1,1:lenbeta+1)])
-# 
-# 	# system.time(
-# 	rep_b <- obj_b$rep(unlist(parlist))
-# 	# )
-# 	# ^ 0.3s | MBP13 Toy4 nS=9445 maxlag=2
-# 
-# 	# update routed pred
-# 	predmatprev <- rep_b$fitted
-# 	rpredmat[,1:datalist$maxlag+(b-2)*datalist$maxlag+2*datalist$maxlag] <- predmatprev
-# 	# ^ not update first maxlag time points on which we condition, they remain equal
-# 	#   to the non-routed predmat (supplied initial predictions)
-# 
-# } # for b in 3:(maxb-1)
-# 
-# 
-# #### last (incomplete block with b=maxb)
-# bvec <- 1:datalist$maxlag+(maxb-2)*datalist$maxlag+2*datalist$maxlag
-# bvec <- bvec[-which(bvec>nT)]
-# 
-# parlist_last <- parlist_ini
-# 
-# # datalist_last <- list(
-# # 	'obsmat'=as.matrix(obsmat01[, bvec]),
-# # 	'obsindmat'=as.matrix(obsindmat01[, bvec]),
-# # 	'predmat'=cbind(predmatprev, rpredmat[, bvec]),
-# # 	'routingorder'=routingorder,
-# # 	'neighlist'=neighlist,
-# # 	'wshapecovlist'=wshapecovlist, # alternative with additional sqrt
-# # 	'maxlag'=maxlag,
-# # 	'lag0'=lag0
-# # )
-# 
-# # system.time(
-# obj_last <- MakeADFun(
-# 	func = rout_nll_block_last,
-# 	parameters = parlist_last,
-# 	silent = T
-# )
-# # )
-# 
-# objfn <- objfn + obj_last$fn(unlist(parlist_last))
-# objgr <- objgr + as.numeric(obj_last$gr(unlist(parlist_last)))
-# 
-# # system.time(
-# rep_last <- obj_last$rep(unlist(parlist_last))
-# # )
-# 
-# # update routed pred
-# rpredmat[,bvec] <- rep_last$fitted
-# }
+
 # print(proc.time()[3]-wallclock)
 
 
@@ -266,4 +182,4 @@ objgr <- objgr/n.active
 fit1 <- list('fn'=objfn,'gr'=objgr)
 # }
 
-# end routnll_blockwise_firsteval
+# end routnll_blockwise_firsteval_nolake

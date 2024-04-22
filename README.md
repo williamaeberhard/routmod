@@ -6,14 +6,13 @@ routmod: R code for routing module to improve river discharge predictions along 
 * [ ] 
 
 
-
-
 ### Version History
 
 This is routmod version 0.9.
 
 * v0.9:
   - routnll_blockwise.r: now conditioning on lake dummy variable, distinct sets of param in wshapebeta for lake=0 and lake=1.
+  - created *_nolake versions of routnll_blockwise.r, routnll_blockwise_firsteval.r, and routnll_blockwise_eval.r, for routing without lake conditioning, i.e. equivalent to v0.8.
 * v0.8:
   - routnll_blockwise.r: added option datalist$losscode=3 for MSE on sqrt runoff scale. $fitted remains on raw discharge scale.
 * v0.7:
