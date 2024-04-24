@@ -94,11 +94,17 @@ rout_nll_block_ini <- function(par){
 				# whshape_ss <- exp(sum(wshapebeta[1] +
 				# 												wshapebeta[-1]*datalist_ini$wshapecovlist[[s]][[ss]]))
 				# # ^ lin comb (p->1) with log link for shape>0
+				# whshape_ss <- exp(
+				# 	(1-datalist_ini$wshapelake[[s]][[ss]])*
+				# 		sum(wshapebeta[1]+wshapebeta[2:p]*datalist_ini$wshapecovlist[[s]][[ss]]) + 
+				# 		+ datalist_ini$wshapelake[[s]][[ss]]*
+				# 		sum(wshapebeta[p+1]+wshapebeta[(p+2):(2*p)]*datalist_ini$wshapecovlist[[s]][[ss]])
+				# )
 				whshape_ss <- exp(
 					(1-datalist_ini$wshapelake[[s]][[ss]])*
-						sum(wshapebeta[1]+wshapebeta[2:p]*datalist_ini$wshapecovlist[[s]][[ss]]) + 
+						(wshapebeta[1]+sum(wshapebeta[2:p]*datalist_ini$wshapecovlist[[s]][[ss]])) + 
 						+ datalist_ini$wshapelake[[s]][[ss]]*
-						sum(wshapebeta[p+1]+wshapebeta[(p+2):(2*p)]*datalist_ini$wshapecovlist[[s]][[ss]])
+						(wshapebeta[p+1]+sum(wshapebeta[(p+2):(2*p)]*datalist_ini$wshapecovlist[[s]][[ss]]))
 				)
 				# ^ distinct param in lin com for lake=0 and lake=1
 				gammadens <- dgamma(
@@ -258,11 +264,17 @@ rout_nll_block <- function(par){
 				# whshape_ss <- exp(sum(wshapebeta[1] +
 				# 												wshapebeta[-1]*datalist$wshapecovlist[[s]][[ss]]))
 				# # ^ lin comb (p->1) with log link for shape>0
+				# whshape_ss <- exp(
+				# 	(1-datalist$wshapelake[[s]][[ss]])*
+				# 		sum(wshapebeta[1]+wshapebeta[2:p]*datalist$wshapecovlist[[s]][[ss]]) + 
+				# 		+ datalist$wshapelake[[s]][[ss]]*
+				# 		sum(wshapebeta[p+1]+wshapebeta[(p+2):(2*p)]*datalist$wshapecovlist[[s]][[ss]])
+				# )
 				whshape_ss <- exp(
 					(1-datalist$wshapelake[[s]][[ss]])*
-						sum(wshapebeta[1]+wshapebeta[2:p]*datalist$wshapecovlist[[s]][[ss]]) + 
+						(wshapebeta[1]+sum(wshapebeta[2:p]*datalist$wshapecovlist[[s]][[ss]])) +
 						+ datalist$wshapelake[[s]][[ss]]*
-						sum(wshapebeta[p+1]+wshapebeta[(p+2):(2*p)]*datalist$wshapecovlist[[s]][[ss]])
+						(wshapebeta[p+1]+sum(wshapebeta[(p+2):(2*p)]*datalist$wshapecovlist[[s]][[ss]]))
 				)
 				# ^ distinct param in lin com for lake=0 and lake=1
 				
