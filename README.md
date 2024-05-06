@@ -14,6 +14,7 @@ This is routmod version 0.9.
   - routnll_blockwise.r: now conditioning on lake dummy variable, distinct sets of param in wshapebeta for lake=0 and lake=1.
   - created *_nolake versions of routnll_blockwise.r, routnll_blockwise_firsteval.r, and routnll_blockwise_eval.r, for routing without lake conditioning, i.e. equivalent to v0.8.
   - created *_nocov versions of routnll_blockwise.r, routnll_blockwise_firsteval.r, and routnll_blockwise_eval.r, for routing with same param everywhere, i.e., constant scale and shape parameters for the gamma density kernel.
+ - created *_onlylake versions of routnll_blockwise.r, routnll_blockwise_firsteval.r, and routnll_blockwise_eval.r, for routing with lake conditioning but nother covariates, i.e., no wshapecovlist is used and there are only two distinct intercepts for lake=0 and lake=1 in wshapebeta.
 * v0.8:
   - routnll_blockwise.r: added option datalist$losscode=3 for MSE on sqrt runoff scale. $fitted remains on raw discharge scale.
 * v0.7:
