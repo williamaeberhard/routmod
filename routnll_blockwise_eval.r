@@ -1,6 +1,9 @@
 # routnll_blockwise_eval: eval fn and gr of rounll_blockwise | v0.9
 # * Change log:
-#    - v0.9: matching routnll_blockwise.r v0.9 with conditioning on lake status
+#    - v0.9:
+#      - matching routnll_blockwise.r v0.9 with conditioning on lake status
+#      - adpated to work with pred_routmod by calling only objects in datalist
+#        in addition to parvec1
 #    - v0.5: routnll_blockwise_ini and routnll_blockwise now output sum of
 #      squared residuals as defualt loss, so that here we sum them and then
 #      output $fn as an overall mean squared error
@@ -129,7 +132,7 @@ routnll_blockwise_eval <- function(parvec, predmat, maxlag, outputfitted=FALSE){
 	
 	# update routed pred
 	predmatprev <- rep_b$fitted
-	rpredmat[,1:datalist$maxlag+(b-2)*datalist$maxlag+2*datalist$maxlag] <- predmatprev
+	rpredmat[, 1:maxlag+(b-2)*maxlag+2*maxlag] <- predmatprev
 	# ^ not update first maxlag time points on which we condition, they remain equal
 	#   to the non-routed predmat (supplied initial predictions)
 	
@@ -169,7 +172,7 @@ routnll_blockwise_eval <- function(parvec, predmat, maxlag, outputfitted=FALSE){
 		
 		# update routed pred
 		predmatprev <- rep_b$fitted
-		rpredmat[,1:datalist$maxlag+(b-2)*datalist$maxlag+2*datalist$maxlag] <- predmatprev
+		rpredmat[, 1:maxlag+(b-2)*maxlag+2*maxlag] <- predmatprev
 		# ^ not update first maxlag time points on which we condition, they remain equal
 		#   to the non-routed predmat (supplied initial predictions)
 		
@@ -247,7 +250,7 @@ routnll_blockwise_eval <- function(parvec, predmat, maxlag, outputfitted=FALSE){
 	
 	
 	### // output ----
-	n.active <- sum(datalist$obsindmat[,(datalist$maxlag+1):nT])
+	n.active <- sum(datalist$obsindmat[,(maxlag+1):nT])
 	objfn <- objfn/n.active
 	objgr <- objgr/n.active
 	# ^ sum of squared resid => MSE

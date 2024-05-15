@@ -3,7 +3,10 @@ routmod: R code for routing module to improve river discharge predictions along 
 
 ### Todo
 
-* [ ] 
+* [ ] adapt *_nolake vertsion of routnll_blockwise_firsteval.r and routnll_blockwise_eval.r to work with pred_routmod by calling only objects in datalist and parvec1
+* [ ] adapt *_nocov vertsion of routnll_blockwise_firsteval.r and routnll_blockwise_eval.r to work with pred_routmod by calling only objects in datalist and parvec1
+* [ ] adapt *_onlylake vertsion of routnll_blockwise_firsteval.r and routnll_blockwise_eval.r to work with pred_routmod by calling only objects in datalist and parvec1
+
 
 
 ### Version History
@@ -15,6 +18,7 @@ This is routmod version 0.9.
   - created *_nolake versions of routnll_blockwise.r, routnll_blockwise_firsteval.r, and routnll_blockwise_eval.r, for routing without lake conditioning, i.e. equivalent to v0.8.
   - created *_nocov versions of routnll_blockwise.r, routnll_blockwise_firsteval.r, and routnll_blockwise_eval.r, for routing with same param everywhere, i.e., constant scale and shape parameters for the gamma density kernel.
  - created *_onlylake versions of routnll_blockwise.r, routnll_blockwise_firsteval.r, and routnll_blockwise_eval.r, for routing with lake conditioning but nother covariates, i.e., no wshapecovlist is used and there are only two distinct intercepts for lake=0 and lake=1 in wshapebeta.
+ - adapted routnll_blockwise_firsteval.r and routnll_blockwise_eval.r to work with pred_routmod by calling only objects in datalist in addition to parvec1
 * v0.8:
   - routnll_blockwise.r: added option datalist$losscode=3 for MSE on sqrt runoff scale. $fitted remains on raw discharge scale.
 * v0.7:
