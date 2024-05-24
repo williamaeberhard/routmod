@@ -1,10 +1,17 @@
-# routnll blockwise only lake: neg log lik for routing | v0.9
+# routnll blockwise only lake: neg log lik for routing | v0.9.1
 # * Change log:
+#    - v0.9.1: changed dgamma to user-defined gammakern, avoiding computation
+#              of gamma pdf normalization factor
 #    - v0.9: initial version, forked from routnll blockwise v0.9
 
 # * Convention for vector stacking: time = outer loop, space = inner loop
 
 is.whole <- function(x,tol=.Machine$double.eps^0.5){abs(x-round(x))<tol}
+
+gammakern <- function(x,shape,scale){
+	return(x^(shape-1)*exp(-x/scale))
+}
+# ^ dgamma without the normalization factor, cheaper to compute
 
 rout_nll_block_onlylake_ini <- function(par){
 	# * par vector order:
@@ -87,10 +94,15 @@ rout_nll_block_onlylake_ini <- function(par){
 						+ datalist_ini$wshapelake[[s]][[ss]]*wshapebeta[p+1]
 				)
 				# ^ distinct param in lin com for lake=0 and lake=1
-				gammadens <- dgamma(
+				# gammadens <- dgamma(
+				# 	x=c(datalist_ini$lag0, 1:datalist_ini$maxlag), # lag0 = same day
+				# 	shape=whshape_ss, scale=wscale
+				# )
+				gammadens <- gammakern(
 					x=c(datalist_ini$lag0, 1:datalist_ini$maxlag), # lag0 = same day
-					shape=whshape_ss, scale=wscale
-				)
+					shape=whshape_ss,
+					scale=wscale
+				) # v0.9.1: dgamma replaced by gammakern
 				gammadens <- gammadens/sum(gammadens) # rescale so sum(weights) = 1
 				fitted[s,t] <- fitted[s,t] +
 					+ sum(gammadens*fitted[datalist_ini$neighlist[[s]][[ss]],
@@ -257,10 +269,15 @@ rout_nll_block_onlylake <- function(par){
 				)
 				# ^ distinct param in lin com for lake=0 and lake=1
 				
-				gammadens <- dgamma(
-					x=c(datalist$lag0, 1:datalist$maxlag), # lag0 = same day
-					shape=whshape_ss, scale=wscale
-				)
+				# gammadens <- dgamma(
+				# 	x=c(datalist$lag0, 1:datalist$maxlag), # lag0 = same day
+				# 	shape=whshape_ss, scale=wscale
+				# )
+				gammadens <- gammakern(
+					x=c(datalist_ini$lag0, 1:datalist_ini$maxlag), # lag0 = same day
+					shape=whshape_ss,
+					scale=wscale
+				) # v0.9.1: dgamma replaced by gammakern
 				gammadens <- gammadens/sum(gammadens) # rescale, so sum(weights) = 1
 				fitted[s,t] <- fitted[s,t] +
 					+ sum(gammadens*fitted[datalist$neighlist[[s]][[ss]],
