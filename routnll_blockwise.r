@@ -350,8 +350,8 @@ rout_nll_block <- function(par){
 				# loop over all loc, excl the ones most ustr where fitted[s,]=predmat[s,]
 				for (ss in 1:length(datalist$neighlist[[s]])){ # direct ustr neighbors
 					
-					covvec_tmp <- c(datalist_ini$wshapecovlist[[s]][[ss]], 
-													fitted[datalist_ini$neighlist[[s]][[ss]], t]
+					covvec_tmp <- c(datalist$wshapecovlist[[s]][[ss]], 
+													fitted[datalist$neighlist[[s]][[ss]], t]
 					)
 					# ^ add routed discharge from ustr polyg to vector of covariates, same
 					#   time point

@@ -1,20 +1,24 @@
-# routnll_blockwise_firsteval: eval fn and gr of rounll_blockwise | v0.9
+# routnll_blockwise_firsteval: eval fn and gr of rounll_blockwise | v0.9.2
 # * Change log:
+#    - v0.9.2:
+#      - adapted to work with pred_routmod by calling only objects in datalist
+#        in addition to parvec1
+#      - should work with routnll_blockwise_onlalake.r v0.9.2 with routed
+#        discharge as cov in wshape.
 #    - v0.9: initial version, forked from routnll_blockwise_firsteval v0.9
 
-# routnll_blockwise_eval <- function(parvec,
-# 																	 # obsmat01, obsindmat01,
-# 																	 predmat,
-# 																	 # routingorder, neighlist, wshapecovlist,
-# 																	 # lag0=1e-3,
-# 																	 maxlag, outputfitted=FALSE){
 
 ### // setup ----
-nT <- ncol(predmat)
-if (!is.whole(nT/maxlag)){
-	stop('nT must be a multiple of maxlag (for now)')
+# nT <- ncol(predmat) # bad, should call datalist
+nT.eval <- ncol(datalist$predmat)
+maxlag.eval <- as.integer(datalist$maxlag)
+
+if (!is.whole(nT.eval/maxlag.eval)){
+	stop('ncol(datalist$predmat) must be a multiple of datalist$maxlag.')
 }
-rpredmat <- predmat # routed predictions
+
+# rpredmat <- predmat # bad, should call datalist
+rpredmat.eval <- datalist$predmat
 
 parvec <- parvec1
 # ^ v0.4: now incl intercept as [2], log_wscale remains [1]
@@ -72,7 +76,7 @@ rep_ini <- obj_ini$rep(unlist(parlist_ini))
 
 # update routed pred
 predmatprev <- rep_ini$fitted
-rpredmat[,(maxlag+1):(2*maxlag)] <- predmatprev
+rpredmat.eval[,(maxlag.eval+1):(2*maxlag.eval)] <- predmatprev
 # ^ not update first maxlag time points on which we condition, they remain equal
 #   to the non-routed predmat (supplied initial predictions)
 
@@ -128,7 +132,7 @@ rep_b <- obj_b$rep(unlist(parlist))
 
 # update routed pred
 predmatprev <- rep_b$fitted
-rpredmat[,1:datalist$maxlag+(b-2)*datalist$maxlag+2*datalist$maxlag] <- predmatprev
+rpredmat.eval[,1:maxlag.eval+(b-2)*maxlag.eval+2*maxlag.eval] <- predmatprev
 # ^ not update first maxlag time points on which we condition, they remain equal
 #   to the non-routed predmat (supplied initial predictions)
 
@@ -141,7 +145,7 @@ rpredmat[,1:datalist$maxlag+(b-2)*datalist$maxlag+2*datalist$maxlag] <- predmatp
 # wallclock <- proc.time()[3]
 # if (is.whole(nT/maxlag)){
 # nT is a multiple of maxlag, last block is complete
-maxb <- nT/maxlag - 1L
+maxb <- nT.eval/maxlag.eval - 1L
 
 # b <- 3L
 for (b in 3:maxb){
@@ -167,7 +171,7 @@ for (b in 3:maxb){
 	
 	# update routed pred
 	predmatprev <- rep_b$fitted
-	rpredmat[,1:datalist$maxlag+(b-2)*datalist$maxlag+2*datalist$maxlag] <- predmatprev
+	rpredmat.eval[,1:maxlag.eval+(b-2)*maxlag.eval+2*maxlag.eval] <- predmatprev
 	# ^ not update first maxlag time points on which we condition, they remain equal
 	#   to the non-routed predmat (supplied initial predictions)
 	
@@ -254,7 +258,7 @@ for (b in 3:maxb){
 
 # return(out)
 
-n.active <- sum(datalist$obsindmat[,(datalist$maxlag+1):nT])
+n.active <- sum(datalist$obsindmat[,(maxlag.eval+1):nT.eval])
 objfn <- objfn/n.active
 objgr <- objgr/n.active
 # ^ sum of squared resid => MSE

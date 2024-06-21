@@ -1,5 +1,10 @@
-# routnll blockwise no cov: neg log lik for routing | v0.9.1
+# routnll blockwise no cov: neg log lik for routing | v0.9.2
 # * Change log:
+#    - v0.9.2: added option for routed discharge from direct upstream neighbor
+#              (fitted) to linear combination of effects in wshape. Argument
+#              dischargeinshape in datalist_ini and datalist, 0 or 1. So even
+#              if "no cov", setting dischargeinshape=1 still adds a cov in
+#              wshape (not constant anymore)
 #    - v0.9.1: changed dgamma to user-defined gammakern, avoiding computation
 #              of gamma pdf normalization factor
 #    - v0.9: initial version, forked from routnll_blockwise_nolake v0.9.
@@ -33,6 +38,9 @@ rout_nll_block_nocov_ini <- function(par){
 	#     element being a list of numeric vectors (number of vectors is length of
 	#     the corresponding element in neighlist), each vector being of same
 	#     length p-1 = length(wshapebeta)-1 where the values are static cov
+	#   - dischargeinshape: 1 = include routed discharge from ustr polyg in
+	#     wshape, 0 = do not include it and thus really no cov at all (constant
+	#     wshape).
 	#   - lag0: lag 0 = same day for gamma kernel, but >0, e.g. 1e-3
 	
 	
@@ -48,8 +56,14 @@ rout_nll_block_nocov_ini <- function(par){
 	#----------------------------------------------------------------------------#
 	
 	wscale <- exp(par$log_wscale) # cst, gamma shape has all the cov
-	wshapebeta <- par$wshapebeta # v0.9 nocov: only intercept
-	whshape_ss <- exp(wshapebeta)
+	
+	if (datalist_ini$dischargeinshape==0){
+		wshapebeta <- par$wshapebeta # v0.9 nocov: only intercept
+		whshape_ss <- exp(wshapebeta)
+	} else {
+		wshapebeta <- par$wshapebeta
+		# whshape_ss defined in loops below
+	}
 	
 	nS <- nrow(datalist_ini$obsmat) # nb loc overall (polyg and stations)
 	nT <- ncol(datalist_ini$predmat) # not the total nb of time steps
@@ -62,28 +76,59 @@ rout_nll_block_nocov_ini <- function(par){
 	
 	fitted <- datalist_ini$predmat # v=0.6: remains on raw discharge scale
 	
-	for (t in datalist_ini$tvec){ # ini: cond on 1st maxlag obs
-		for (s in datalist_ini$routingorder){
-			# loop over all loc excl the ones most ustr where fitted[s,]=predmat[s,]
-			for (ss in 1:length(datalist_ini$neighlist[[s]])){ # direct ustr neighbors
-				# whshape_ss <- exp(wshapebeta)
-				# gammadens <- dgamma(
-				# 	x=c(datalist_ini$lag0, 1:datalist_ini$maxlag), # lag0 = same day
-				# 	shape=whshape_ss, scale=wscale
-				# )
-				gammadens <- gammakern(
-					x=c(datalist_ini$lag0, 1:datalist_ini$maxlag), # lag0 = same day
-					shape=whshape_ss,
-					scale=wscale
-				) # v0.9.1: dgamma replaced by gammakern
-				gammadens <- gammadens/sum(gammadens) # rescale so sum(weights) = 1
-				fitted[s,t] <- fitted[s,t] +
-					+ sum(gammadens*fitted[datalist_ini$neighlist[[s]][[ss]],
-																 t-(0:datalist_ini$maxlag)]) # add to pred
-				# ^ weighted comb of pred from ustr neighbors at lag 0:maxlag
-			}
-		} # for s in routingorder
-	} # for t in (maxlag+1):nT
+	if (datalist_ini$dischargeinshape==0){
+		# then really no cov, constant wshape
+		
+		for (t in datalist_ini$tvec){ # ini: cond on 1st maxlag obs
+			for (s in datalist_ini$routingorder){
+				# loop over all loc excl the ones most ustr where fitted[s,]=predmat[s,]
+				for (ss in 1:length(datalist_ini$neighlist[[s]])){ # direct ustr neighbors
+					# whshape_ss <- exp(wshapebeta)
+					# gammadens <- dgamma(
+					# 	x=c(datalist_ini$lag0, 1:datalist_ini$maxlag), # lag0 = same day
+					# 	shape=whshape_ss, scale=wscale
+					# )
+					gammadens <- gammakern(
+						x=c(datalist_ini$lag0, 1:datalist_ini$maxlag), # lag0 = same day
+						shape=whshape_ss,
+						scale=wscale
+					) # v0.9.1: dgamma replaced by gammakern
+					gammadens <- gammadens/sum(gammadens) # rescale so sum(weights) = 1
+					fitted[s,t] <- fitted[s,t] +
+						+ sum(gammadens*fitted[datalist_ini$neighlist[[s]][[ss]],
+																	 t-(0:datalist_ini$maxlag)]) # add to pred
+					# ^ weighted comb of pred from ustr neighbors at lag 0:maxlag
+				}
+			} # for s in routingorder
+		} # for t in (maxlag+1):nT
+		
+	} else {
+		# then routed discharge in wshape lin comb, with dim of wshapebeta assumed
+		# correct.
+		
+		for (t in datalist_ini$tvec){ # ini: cond on 1st maxlag obs
+			for (s in datalist_ini$routingorder){
+				# loop over all loc excl the ones most ustr where fitted[s,]=predmat[s,]
+				for (ss in 1:length(datalist_ini$neighlist[[s]])){ # direct ustr neighbors
+					covvec_tmp <- fitted[datalist_ini$neighlist[[s]][[ss]], t]
+					whshape_ss <- exp(wshapebeta[1]+sum(wshapebeta[2]*covvec_tmp))
+					
+					gammadens <- gammakern(
+						x=c(datalist_ini$lag0, 1:datalist_ini$maxlag), # lag0 = same day
+						shape=whshape_ss,
+						scale=wscale
+					) # v0.9.1: dgamma replaced by gammakern
+					
+					gammadens <- gammadens/sum(gammadens) # rescale so sum(weights) = 1
+					fitted[s,t] <- fitted[s,t] +
+						+ sum(gammadens*fitted[datalist_ini$neighlist[[s]][[ss]],
+																	 t-(0:datalist_ini$maxlag)]) # add to pred
+					# ^ weighted comb of pred from ustr neighbors at lag 0:maxlag
+				}
+			} # for s in routingorder
+		} # for t in (maxlag+1):nT
+		
+	}
 	
 	fitted <- fitted[, datalist_ini$tvec] # remove previous block
 	# ^ output fitted is nS x maxlag, same dim as obsmat
@@ -145,6 +190,9 @@ rout_nll_block_nocov <- function(par){
 	#     element being a list of numeric vectors (number of vectors is length of
 	#     the corresponding element in neighlist), each vector being of same
 	#     length p-1 = length(wshapebeta)-1 where the values are static cov
+	#   - dischargeinshape: 1 = include routed discharge from ustr polyg in
+	#     wshape, 0 = do not include it and thus really no cov at all (constant
+	#     wshape).
 	#   - lag0: lag 0 = same day for gamma kernel, but >0, e.g. 1e-3
 	
 	#----------------------------------------------------------------------------#
@@ -160,7 +208,11 @@ rout_nll_block_nocov <- function(par){
 	
 	wscale <- exp(par$log_wscale) # cst, gamma shape has all the cov
 	wshapebeta <- par$wshapebeta # v0.9 nocov: only intercept
-	whshape_ss <- exp(wshapebeta)
+	if (datalist$dischargeinshape==0){
+		whshape_ss <- exp(wshapebeta)
+	} else {
+		wshapebeta <- par$wshapebeta
+	}
 	
 	nS <- nrow(datalist$obsmat) # nb loc overall (polyg and stations)
 	nT <- ncol(datalist$predmat) # total nb time points
@@ -200,16 +252,15 @@ rout_nll_block_nocov <- function(par){
 	
 	fitted <- predmat1
 	
+	if (datalist$dischargeinshape==0){
+		# then really no cov, constant wshape
+		
 	for (t in (1+datalist$maxlag):nT1){
 		for (s in datalist$routingorder){
 			# loop over all loc, excl the ones most ustr where fitted[s,]=predmat[s,]
 			for (ss in 1:length(datalist$neighlist[[s]])){ # direct ustr neighbors
-				# gammadens <- dgamma(
-				# 	x=c(datalist$lag0, 1:datalist$maxlag), # lag0 = same day
-				# 	shape=whshape_ss, scale=wscale
-				# )
 				gammadens <- gammakern(
-					x=c(datalist_ini$lag0, 1:datalist_ini$maxlag), # lag0 = same day
+					x=c(datalist$lag0, 1:datalist$maxlag), # lag0 = same day
 					shape=whshape_ss,
 					scale=wscale
 				) # v0.9.1: dgamma replaced by gammakern
@@ -221,6 +272,33 @@ rout_nll_block_nocov <- function(par){
 			}
 		} # for s in routingorder
 	} # for t in (maxlag+1):nT1
+		
+	} else {
+		# then routed discharge in wshape lin comb, with dim of wshapebeta assumed
+		# correct.
+		
+		for (t in (1+datalist$maxlag):nT1){
+			for (s in datalist$routingorder){
+				# loop over all loc, excl the ones most ustr where fitted[s,]=predmat[s,]
+				for (ss in 1:length(datalist$neighlist[[s]])){ # direct ustr neighbors
+					covvec_tmp <- fitted[datalist$neighlist[[s]][[ss]], t]
+					whshape_ss <- exp(wshapebeta[1]+sum(wshapebeta[2]*covvec_tmp))
+					
+					gammadens <- gammakern(
+						x=c(datalist$lag0, 1:datalist$maxlag), # lag0 = same day
+						shape=whshape_ss,
+						scale=wscale
+					) # v0.9.1: dgamma replaced by gammakern
+					gammadens <- gammadens/sum(gammadens) # rescale, so sum(weights) = 1
+					fitted[s,t] <- fitted[s,t] +
+						+ sum(gammadens*fitted[datalist$neighlist[[s]][[ss]],
+																	 t-(0:datalist$maxlag)]) # add to pred
+					# ^ weighted comb of pred from ustr neighbors at lag 0:maxlag
+				}
+			} # for s in routingorder
+		} # for t in (maxlag+1):nT1
+		
+	}
 	
 	fitted <- fitted[, (1+datalist$maxlag):nT1] # breaks if truncated bvec
 	

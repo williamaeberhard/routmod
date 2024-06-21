@@ -1,5 +1,7 @@
-# routnll_blockwise_eval_nocov: eval fn and gr of rounll_blockwise | v0.9
+# routnll_blockwise_eval_nocov: eval fn and gr of rounll_blockwise | v0.9.2
 # * Change log:
+#    - v0.9.2: adapted to work with routnll_blockwise_nocov.r v0.9.2 with routed
+#      discharge as cov in wshape.
 #    - v0.9: initial version, forked from routnll_blockwise_eval_nolake v0.9
 
 routnll_blockwise_eval_nocov <- function(parvec, predmat, maxlag, outputfitted=FALSE){
@@ -21,8 +23,8 @@ routnll_blockwise_eval_nocov <- function(parvec, predmat, maxlag, outputfitted=F
 	
 	parlist_ini <- list(
 		'log_wscale'=parvec[1],
-		# 'wshapebeta'=parvec[2:length(parvec)] #
-		'wshapebeta'=parvec[2] #
+		# 'wshapebeta'=parvec[2] #
+		'wshapebeta'=parvec[2:length(parvec)] # v0.9.2: better
 	)
 	lenbeta <- length(parlist_ini$wshapebeta)
 	
@@ -99,8 +101,8 @@ routnll_blockwise_eval_nocov <- function(parvec, predmat, maxlag, outputfitted=F
 	# )
 	
 	objfn <- objfn + obj_b$fn(unlist(parlist)) # sum of squared resid
-	# objgr <- objgr + as.numeric(obj_b$gr(unlist(parlist))[c(1,1:lenbeta+1)])
-	objgr <- objgr + as.numeric(obj_b$gr(unlist(parlist))[c(1,2)])
+	# objgr <- objgr + as.numeric(obj_b$gr(unlist(parlist))[c(1,2)])
+	objgr <- objgr + as.numeric(obj_b$gr(unlist(parlist))[c(1,1:lenbeta+1)]) # v0.9.2
 
 	
 	# system.time(
@@ -109,7 +111,7 @@ routnll_blockwise_eval_nocov <- function(parvec, predmat, maxlag, outputfitted=F
 	
 	# update routed pred
 	predmatprev <- rep_b$fitted
-	rpredmat[,1:datalist$maxlag+(b-2)*datalist$maxlag+2*datalist$maxlag] <- predmatprev
+	rpredmat[,1:maxlag+(b-2)*maxlag+2*maxlag] <- predmatprev
 	# ^ not update first maxlag time points on which we condition, they remain equal
 	#   to the non-routed predmat (supplied initial predictions)
 	
@@ -133,8 +135,8 @@ routnll_blockwise_eval_nocov <- function(parvec, predmat, maxlag, outputfitted=F
 		)
 		
 		objfn <- objfn + obj_b$fn(unlist(parlist)) # sum of squared resid
-		# objgr <- objgr + as.numeric(obj_b$gr(unlist(parlist))[c(1,1:lenbeta+1)])
-		objgr <- objgr + as.numeric(obj_b$gr(unlist(parlist))[c(1,2)])
+		# objgr <- objgr + as.numeric(obj_b$gr(unlist(parlist))[c(1,2)])
+		objgr <- objgr + as.numeric(obj_b$gr(unlist(parlist))[c(1,1:lenbeta+1)]) # v0.9.2
 		
 		# system.time(
 		rep_b <- obj_b$rep(unlist(parlist))
@@ -142,7 +144,7 @@ routnll_blockwise_eval_nocov <- function(parvec, predmat, maxlag, outputfitted=F
 		
 		# update routed pred
 		predmatprev <- rep_b$fitted
-		rpredmat[,1:datalist$maxlag+(b-2)*datalist$maxlag+2*datalist$maxlag] <- predmatprev
+		rpredmat[,1:maxlag+(b-2)*maxlag+2*maxlag] <- predmatprev
 		# ^ not update first maxlag time points on which we condition, they remain equal
 		#   to the non-routed predmat (supplied initial predictions)
 		
@@ -153,7 +155,7 @@ routnll_blockwise_eval_nocov <- function(parvec, predmat, maxlag, outputfitted=F
 	
 	
 	### // output ----
-	n.active <- sum(datalist$obsindmat[,(datalist$maxlag+1):nT])
+	n.active <- sum(datalist$obsindmat[,(maxlag+1):nT])
 	objfn <- objfn/n.active
 	objgr <- objgr/n.active
 	# ^ sum of squared resid => MSE

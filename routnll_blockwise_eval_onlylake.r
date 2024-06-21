@@ -1,5 +1,7 @@
-# routnll_blockwise_eval: eval fn and gr of rounll_blockwise | v0.9
+# routnll_blockwise_eval: eval fn and gr of rounll_blockwise | v0.9.2
 # * Change log:
+#    - v0.9.2: adapted to work with routnll_blockwise_onlylake.r v0.9.2 with routed
+#      discharge as cov in wshape.
 #    - v0.9: initial version, forked from routnll_blockwise_eval v0.9
 
 routnll_blockwise_eval_onlylake <- function(parvec, predmat, maxlag,
@@ -125,7 +127,7 @@ routnll_blockwise_eval_onlylake <- function(parvec, predmat, maxlag,
 	
 	# update routed pred
 	predmatprev <- rep_b$fitted
-	rpredmat[,1:datalist$maxlag+(b-2)*datalist$maxlag+2*datalist$maxlag] <- predmatprev
+	rpredmat[,1:maxlag+(b-2)*maxlag+2*maxlag] <- predmatprev
 	# ^ not update first maxlag time points on which we condition, they remain equal
 	#   to the non-routed predmat (supplied initial predictions)
 	
@@ -165,7 +167,7 @@ routnll_blockwise_eval_onlylake <- function(parvec, predmat, maxlag,
 		
 		# update routed pred
 		predmatprev <- rep_b$fitted
-		rpredmat[,1:datalist$maxlag+(b-2)*datalist$maxlag+2*datalist$maxlag] <- predmatprev
+		rpredmat[,1:maxlag+(b-2)*maxlag+2*maxlag] <- predmatprev
 		# ^ not update first maxlag time points on which we condition, they remain equal
 		#   to the non-routed predmat (supplied initial predictions)
 		
@@ -243,7 +245,7 @@ routnll_blockwise_eval_onlylake <- function(parvec, predmat, maxlag,
 	
 	
 	### // output ----
-	n.active <- sum(datalist$obsindmat[,(datalist$maxlag+1):nT])
+	n.active <- sum(datalist$obsindmat[,(maxlag+1):nT])
 	objfn <- objfn/n.active
 	objgr <- objgr/n.active
 	# ^ sum of squared resid => MSE

@@ -1,5 +1,10 @@
-# routnll blockwise only lake: neg log lik for routing | v0.9.1
+# routnll blockwise only lake: neg log lik for routing | v0.9.2
 # * Change log:
+#    - v0.9.2: added option for routed discharge from direct upstream neighbor
+#              (fitted) to linear combination of effects in wshape. Argument
+#              dischargeinshape in datalist_ini and datalist, 0 or 1. So even
+#              if "only lake", setting dischargeinshape=1 still adds a cov in
+#              the two wshape (one with lake and one without)
 #    - v0.9.1: changed dgamma to user-defined gammakern, avoiding computation
 #              of gamma pdf normalization factor
 #    - v0.9: initial version, forked from routnll blockwise v0.9
@@ -29,6 +34,8 @@ rout_nll_block_onlylake_ini <- function(par){
 	#   - neighlist: list of length nS, each element being an integer vector of
 	#     values within 1:nS of direct/Markov neighbors ustr, not incl itself, so
 	#     each entry is of length within {0, ..., nS-1}
+	#   - dischargeinshape: 1 = include routed discharge from ustr polyg in
+	#     wshape, 0 = do not include it and thus really only lake.
 	#   - wshapelake: list of length nS, same ordering as neighlist, each
 	#     element being a list of scalars (number of vectors is length of the
 	#     corresponding element in neighlist), each scalar being the lake dummy
@@ -41,12 +48,6 @@ rout_nll_block_onlylake_ini <- function(par){
 	#----------------------------------------------------------------------------#
 	
 	# getAll(par, data)
-	# getAll(par)
-	
-	# datalist_ini <- parent.frame(n=2)[['datalist_ini']] # works
-	# assign(x='datalist_ini',value=parent.frame(n=2)[['datalist_ini']],pos=1) #
-	# datalist_ini <- get(x='datalist_ini',envir=parent.frame(n=2)) # pos=2
-	# assign(x='vv',value=2,pos=1) # envir=parent.frame()
 	
 	
 	#----------------------------------------------------------------------------#
@@ -61,7 +62,7 @@ rout_nll_block_onlylake_ini <- function(par){
 	# ^ ini: ncol(predmat)=2*maxlag, but ncols(obsmat) = latter maxlag
 	
 	p <- length(wshapebeta)/2 # length(datalist_ini$wshapecovlist[[1]][[1]]) + 1
-	# ^ onlylake: p=1
+	# ^ onlylake and dischargeinshape=0: p=1
 	
 	
 	#----------------------------------------------------------------------------#
@@ -69,48 +70,71 @@ rout_nll_block_onlylake_ini <- function(par){
 	#----------------------------------------------------------------------------#
 	
 	fitted <- datalist_ini$predmat # v=0.6: remains on raw discharge scale
-	# for (t in (1+datalist_ini$maxlag):nT){ # ini: cond on 1st maxlag obs
-	for (t in datalist_ini$tvec){ # ini: cond on 1st maxlag obs
-		for (s in datalist_ini$routingorder){
-			# loop over all loc excl the ones most ustr where fitted[s,]=predmat[s,]
-			for (ss in 1:length(datalist_ini$neighlist[[s]])){ # direct ustr neighbors
-				# whshape_ss <- exp(sum(wshapebeta[1] +
-				# 												wshapebeta[-1]*datalist_ini$wshapecovlist[[s]][[ss]]))
-				# # ^ lin comb (p->1) with log link for shape>0
-				# whshape_ss <- exp(
-				# 	(1-datalist_ini$wshapelake[[s]][[ss]])*
-				# 		sum(wshapebeta[1]+wshapebeta[2:p]*datalist_ini$wshapecovlist[[s]][[ss]]) + 
-				# 		+ datalist_ini$wshapelake[[s]][[ss]]*
-				# 		sum(wshapebeta[p+1]+wshapebeta[(p+2):(2*p)]*datalist_ini$wshapecovlist[[s]][[ss]])
-				# )
-				# whshape_ss <- exp(
-				# 	(1-datalist_ini$wshapelake[[s]][[ss]])*
-				# 		(wshapebeta[1]+sum(wshapebeta[2:p]*datalist_ini$wshapecovlist[[s]][[ss]])) + 
-				# 		+ datalist_ini$wshapelake[[s]][[ss]]*
-				# 		(wshapebeta[p+1]+sum(wshapebeta[(p+2):(2*p)]*datalist_ini$wshapecovlist[[s]][[ss]]))
-				# )
-				whshape_ss <- exp(
-					(1-datalist_ini$wshapelake[[s]][[ss]])*wshapebeta[1] + 
-						+ datalist_ini$wshapelake[[s]][[ss]]*wshapebeta[p+1]
-				)
-				# ^ distinct param in lin com for lake=0 and lake=1
-				# gammadens <- dgamma(
-				# 	x=c(datalist_ini$lag0, 1:datalist_ini$maxlag), # lag0 = same day
-				# 	shape=whshape_ss, scale=wscale
-				# )
-				gammadens <- gammakern(
-					x=c(datalist_ini$lag0, 1:datalist_ini$maxlag), # lag0 = same day
-					shape=whshape_ss,
-					scale=wscale
-				) # v0.9.1: dgamma replaced by gammakern
-				gammadens <- gammadens/sum(gammadens) # rescale so sum(weights) = 1
-				fitted[s,t] <- fitted[s,t] +
-					+ sum(gammadens*fitted[datalist_ini$neighlist[[s]][[ss]],
-																 t-(0:datalist_ini$maxlag)]) # add to pred
-				# ^ weighted comb of pred from ustr neighbors at lag 0:maxlag
-			}
-		} # for s in routingorder
-	} # for t in (maxlag+1):nT
+	
+	if (datalist_ini$dischargeinshape==0){
+		# then only lake in wshape
+		
+		for (t in datalist_ini$tvec){ # ini: cond on 1st maxlag obs
+			for (s in datalist_ini$routingorder){
+				# loop over all loc excl the ones most ustr where fitted[s,]=predmat[s,]
+				for (ss in 1:length(datalist_ini$neighlist[[s]])){ # direct ustr neighbors
+					whshape_ss <- exp(
+						(1-datalist_ini$wshapelake[[s]][[ss]])*wshapebeta[1] + 
+							+ datalist_ini$wshapelake[[s]][[ss]]*wshapebeta[p+1]
+					)
+					# ^ distinct param in lin com for lake=0 and lake=1
+					
+					gammadens <- gammakern(
+						x=c(datalist_ini$lag0, 1:datalist_ini$maxlag), # lag0 = same day
+						shape=whshape_ss,
+						scale=wscale
+					) # v0.9.1: dgamma replaced by gammakern
+					gammadens <- gammadens/sum(gammadens) # rescale so sum(weights) = 1
+					fitted[s,t] <- fitted[s,t] +
+						+ sum(gammadens*fitted[datalist_ini$neighlist[[s]][[ss]],
+																	 t-(0:datalist_ini$maxlag)]) # add to pred
+					# ^ weighted comb of pred from ustr neighbors at lag 0:maxlag
+				}
+			} # for s in routingorder
+		} # for t in (maxlag+1):nT
+		
+	} else {
+		# then add routed discharge to wshape lin comb, with dim of wshapebeta
+		# assumed correct.
+		
+		for (t in datalist_ini$tvec){ # ini: cond on 1st maxlag obs
+			for (s in datalist_ini$routingorder){
+				# loop over all loc excl the ones most ustr where fitted[s,]=predmat[s,]
+				for (ss in 1:length(datalist_ini$neighlist[[s]])){ # direct ustr neighbors
+					
+					covvec_tmp <- fitted[datalist_ini$neighlist[[s]][[ss]], t]
+					# ^ add routed discharge from ustr polyg to vector of covariates, same
+					#   time point
+					
+					whshape_ss <- exp(
+						(1-datalist_ini$wshapelake[[s]][[ss]])*
+							(wshapebeta[1] + wshapebeta[p]*covvec_tmp) + # p=2
+							+ datalist_ini$wshapelake[[s]][[ss]]*
+							(wshapebeta[p+1] + wshapebeta[(p+2):(2*p)]*covvec_tmp)
+					)
+					# ^ distinct param in lin com for lake=0 and lake=1
+					
+					gammadens <- gammakern(
+						x=c(datalist_ini$lag0, 1:datalist_ini$maxlag), # lag0 = same day
+						shape=whshape_ss,
+						scale=wscale
+					) # v0.9.1: dgamma replaced by gammakern
+					gammadens <- gammadens/sum(gammadens) # rescale so sum(weights) = 1
+					fitted[s,t] <- fitted[s,t] +
+						+ sum(gammadens*fitted[datalist_ini$neighlist[[s]][[ss]],
+																	 t-(0:datalist_ini$maxlag)]) # add to pred
+					# ^ weighted comb of pred from ustr neighbors at lag 0:maxlag
+				}
+			} # for s in routingorder
+		} # for t in (maxlag+1):nT
+		
+	}
+	
 	fitted <- fitted[, datalist_ini$tvec] # remove previous block
 	# ^ output fitted is nS x maxlag, same dim as obsmat
 	
@@ -118,17 +142,6 @@ rout_nll_block_onlylake_ini <- function(par){
 	#----------------------------------------------------------------------------#
 	# pnll eval at fitted
 	#----------------------------------------------------------------------------#
-	
-	# pnll <- 0 # ini pen neg loglik
-	# for (s in 1:nS){ # loop over all loc
-	# 	for (t in (1+datalist$maxlag):nT){ # time points after burn-in
-	# 		# time = outer loop, space = inner loop
-	# 		if (datalist$obsindmat[s,t]){ # lkhd contrib only when obs available (tr set)
-	# 			pnll <- pnll - dnorm(x=datalist$obsmat[s,t], mean=fitted[s,t],
-	# 													 sd=sigma, log=T)
-	# 		}
-	# 	}
-	# }
 	
 	if (datalist_ini$losscode==0){
 		# 0 = MSE on raw discharge scale
@@ -178,6 +191,8 @@ rout_nll_block_onlylake <- function(par){
 	#   - neighlist: list of length nS, each element being an integer vector of
 	#     values within 1:nS of direct/Markov neighbors ustr, not incl itself, so
 	#     each entry is of length within {0, ..., nS-1}
+	#   - dischargeinshape: 1 = include routed discharge from ustr polyg in
+	#     wshape, 0 = do not include it and thus really only lake.
 	#   - wshapelake: list of length nS, same ordering as neighlist, each
 	#     element being a list of scalars (number of vectors is length of the
 	#     corresponding element in neighlist), each scalar being the lake dummy
@@ -189,7 +204,6 @@ rout_nll_block_onlylake <- function(par){
 	#----------------------------------------------------------------------------#
 	
 	# getAll(par, datalist)
-	# datalist <- parent.frame(n=2)[['datalist']] # 
 	
 	
 	#----------------------------------------------------------------------------#
@@ -203,14 +217,8 @@ rout_nll_block_onlylake <- function(par){
 	nT <- ncol(datalist$predmat) # total nb time points
 	
 	p <- length(wshapebeta)/2 # length(datalist$wshapecovlist[[1]][[1]]) + 1
-	# ^ onlylake: p=1
+	# ^ onlylake and dischargeinshape=0: p=1
 	
-	# predmatprev1 <- DataEval(f=function(i){
-	# 	matrix(as.double(i),nS)
-	# },x=par$predmatprev)
-	# # ^ just to declare it as data
-	
-	# predmatprev1 <- matrix(as.numeric(par$predmatprev),nS) # <= bad!
 	predmatprev1 <- par$predmatprev
 	
 	predmat11 <- DataEval(f=function(i){
@@ -244,48 +252,70 @@ rout_nll_block_onlylake <- function(par){
 	#----------------------------------------------------------------------------#
 	
 	fitted <- predmat1
-	for (t in (1+datalist$maxlag):nT1){
-		for (s in datalist$routingorder){
-			# loop over all loc, excl the ones most ustr where fitted[s,]=predmat[s,]
-			for (ss in 1:length(datalist$neighlist[[s]])){ # direct ustr neighbors
-				# whshape_ss <- exp(sum(wshapebeta[1] +
-				# 												wshapebeta[-1]*datalist$wshapecovlist[[s]][[ss]]))
-				# # ^ lin comb (p->1) with log link for shape>0
-				# whshape_ss <- exp(
-				# 	(1-datalist$wshapelake[[s]][[ss]])*
-				# 		sum(wshapebeta[1]+wshapebeta[2:p]*datalist$wshapecovlist[[s]][[ss]]) + 
-				# 		+ datalist$wshapelake[[s]][[ss]]*
-				# 		sum(wshapebeta[p+1]+wshapebeta[(p+2):(2*p)]*datalist$wshapecovlist[[s]][[ss]])
-				# )
-				# whshape_ss <- exp(
-				# 	(1-datalist$wshapelake[[s]][[ss]])*
-				# 		(wshapebeta[1]+sum(wshapebeta[2:p]*datalist$wshapecovlist[[s]][[ss]])) +
-				# 		+ datalist$wshapelake[[s]][[ss]]*
-				# 		(wshapebeta[p+1]+sum(wshapebeta[(p+2):(2*p)]*datalist$wshapecovlist[[s]][[ss]]))
-				# )
-				whshape_ss <- exp(
-					(1-datalist$wshapelake[[s]][[ss]])*wshapebeta[1] +
-						+ datalist$wshapelake[[s]][[ss]]*wshapebeta[p+1]
-				)
-				# ^ distinct param in lin com for lake=0 and lake=1
-				
-				# gammadens <- dgamma(
-				# 	x=c(datalist$lag0, 1:datalist$maxlag), # lag0 = same day
-				# 	shape=whshape_ss, scale=wscale
-				# )
-				gammadens <- gammakern(
-					x=c(datalist_ini$lag0, 1:datalist_ini$maxlag), # lag0 = same day
-					shape=whshape_ss,
-					scale=wscale
-				) # v0.9.1: dgamma replaced by gammakern
-				gammadens <- gammadens/sum(gammadens) # rescale, so sum(weights) = 1
-				fitted[s,t] <- fitted[s,t] +
-					+ sum(gammadens*fitted[datalist$neighlist[[s]][[ss]],
-																 t-(0:datalist$maxlag)]) # add to pred
-				# ^ weighted comb of pred from ustr neighbors at lag 0:maxlag
-			}
-		} # for s in routingorder
-	} # for t in (maxlag+1):nT1
+	
+	if (datalist$dischargeinshape==0){
+		# then only use specified cov in wshape
+		
+		for (t in (1+datalist$maxlag):nT1){
+			for (s in datalist$routingorder){
+				# loop over all loc, excl the ones most ustr where fitted[s,]=predmat[s,]
+				for (ss in 1:length(datalist$neighlist[[s]])){ # direct ustr neighbors
+					whshape_ss <- exp(
+						(1-datalist$wshapelake[[s]][[ss]])*wshapebeta[1] +
+							+ datalist$wshapelake[[s]][[ss]]*wshapebeta[p+1]
+					)
+					# ^ distinct param in lin com for lake=0 and lake=1
+					
+					gammadens <- gammakern(
+						x=c(datalist_ini$lag0, 1:datalist_ini$maxlag), # lag0 = same day
+						shape=whshape_ss,
+						scale=wscale
+					) # v0.9.1: dgamma replaced by gammakern
+					gammadens <- gammadens/sum(gammadens) # rescale, so sum(weights) = 1
+					fitted[s,t] <- fitted[s,t] +
+						+ sum(gammadens*fitted[datalist$neighlist[[s]][[ss]],
+																	 t-(0:datalist$maxlag)]) # add to pred
+					# ^ weighted comb of pred from ustr neighbors at lag 0:maxlag
+				}
+			} # for s in routingorder
+		} # for t in (maxlag+1):nT1
+		
+	} else {
+		# then add routed discharge to wshape lin comb, with dim of wshapebeta
+		# assumed correct.
+		
+		for (t in (1+datalist$maxlag):nT1){
+			for (s in datalist$routingorder){
+				# loop over all loc, excl the ones most ustr where fitted[s,]=predmat[s,]
+				for (ss in 1:length(datalist$neighlist[[s]])){ # direct ustr neighbors
+					
+					covvec_tmp <- fitted[datalist$neighlist[[s]][[ss]], t]
+					# ^ add routed discharge from ustr polyg to vector of covariates, same
+					#   time point
+					
+					whshape_ss <- exp(
+						(1-datalist$wshapelake[[s]][[ss]])*
+							(wshapebeta[1] + wshapebeta[p]*covvec_tmp) + # p=2
+							+ datalist$wshapelake[[s]][[ss]]*
+							(wshapebeta[p+1] + wshapebeta[(p+2):(2*p)]*covvec_tmp)
+					)
+					# ^ distinct param in lin com for lake=0 and lake=1
+					
+					gammadens <- gammakern(
+						x=c(datalist$lag0, 1:datalist$maxlag), # lag0 = same day
+						shape=whshape_ss,
+						scale=wscale
+					) # v0.9.1: dgamma replaced by gammakern
+					gammadens <- gammadens/sum(gammadens) # rescale, so sum(weights) = 1
+					fitted[s,t] <- fitted[s,t] +
+						+ sum(gammadens*fitted[datalist$neighlist[[s]][[ss]],
+																	 t-(0:datalist$maxlag)]) # add to pred
+					# ^ weighted comb of pred from ustr neighbors at lag 0:maxlag
+				}
+			} # for s in routingorder
+		} # for t in (maxlag+1):nT1
+		
+	}
 	
 	fitted <- fitted[, (1+datalist$maxlag):nT1] # breaks if truncated bvec
 	# fitted <- fitted[, (nT1-ncol(obsmat1)+1):nT1]

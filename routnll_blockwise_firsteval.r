@@ -3,7 +3,7 @@
 #    - v0.9.2: nothing changed here, just to match routnll_blockwise.r
 #    - v0.9:
 #      - matching routnll_blockwise.r v0.9 with conditioning on lake status
-#      - adpated to work with pred_routmod by calling only objects in datalist
+#      - adapted to work with pred_routmod by calling only objects in datalist
 #        in addition to parvec1
 #    - v0.5: routnll_blockwise_ini and routnll_blockwise now output sum of
 #      squared residuals as defualt loss, so that here we sum them and then

@@ -1,14 +1,24 @@
-# routnll_blockwise_firsteval_nocov: eval fn and gr of rounll_blockwise | v0.9
+# routnll_blockwise_firsteval_nocov: eval fn and gr of rounll_blockwise | v0.9.2
 # * Change log:
+#    - v0.9.2:
+#      - adapted to work with pred_routmod by calling only objects in datalist
+#        in addition to parvec1
+#      - should work with routnll_blockwise_nocov.r v0.9.2 with routed discharge
+#        as cov in wshape.
 #    - v0.9: initial version, forked from routnll_blockwise_firsteval_nolake v0.9
 
 
 ### // setup ----
-nT <- ncol(predmat)
-if (!is.whole(nT/maxlag)){
-	stop('nT must be a multiple of maxlag (for now)')
+# nT <- ncol(predmat) # bad, should call datalist
+nT.eval <- ncol(datalist$predmat)
+maxlag.eval <- as.integer(datalist$maxlag)
+
+if (!is.whole(nT.eval/maxlag.eval)){
+	stop('ncol(datalist$predmat) must be a multiple of datalist$maxlag.')
 }
-rpredmat <- predmat # routed predictions
+
+# rpredmat <- predmat # bad, should call datalist
+rpredmat.eval <- datalist$predmat
 
 parvec <- parvec1
 # ^ v0.9 nocov: c(log_wscale, intercept=log_wshape)
@@ -20,8 +30,8 @@ parvec <- parvec1
 
 parlist_ini <- list(
 	'log_wscale'=parvec[1],
-	# 'wshapebeta'=parvec[2:length(parvec)] # v0.4: now incl intercept as [1]
-	'wshapebeta'=parvec[2] # v0.9 nocov: only intercept
+	# 'wshapebeta'=parvec[2] # v0.9 nocov: only intercept
+	'wshapebeta'=parvec[2:length(parvec)] # v0.9.2: better
 )
 lenbeta <- length(parlist_ini$wshapebeta)
 
@@ -64,7 +74,7 @@ rep_ini <- obj_ini$rep(unlist(parlist_ini))
 
 # update routed pred
 predmatprev <- rep_ini$fitted
-rpredmat[,(maxlag+1):(2*maxlag)] <- predmatprev
+rpredmat.eval[,(maxlag.eval+1):(2*maxlag.eval)] <- predmatprev
 # ^ not update first maxlag time points on which we condition, they remain equal
 #   to the non-routed predmat (supplied initial predictions)
 
@@ -101,8 +111,8 @@ suppressWarnings(
 # )
 
 objfn <- objfn + obj_b$fn(unlist(parlist)) # sum of squared resid
-# objgr <- objgr + as.numeric(obj_b$gr(unlist(parlist))[c(1,1:lenbeta+1)])
-objgr <- objgr + as.numeric(obj_b$gr(unlist(parlist))[c(1,2)])
+# objgr <- objgr + as.numeric(obj_b$gr(unlist(parlist))[c(1,2)])
+objgr <- objgr + as.numeric(obj_b$gr(unlist(parlist))[c(1,1:lenbeta+1)]) # v0.9.2
 
 # system.time(
 rep_b <- obj_b$rep(unlist(parlist))
@@ -118,7 +128,7 @@ rep_b <- obj_b$rep(unlist(parlist))
 
 # update routed pred
 predmatprev <- rep_b$fitted
-rpredmat[,1:datalist$maxlag+(b-2)*datalist$maxlag+2*datalist$maxlag] <- predmatprev
+rpredmat.eval[,1:maxlag.eval+(b-2)*maxlag.eval+2*maxlag.eval] <- predmatprev
 # ^ not update first maxlag time points on which we condition, they remain equal
 #   to the non-routed predmat (supplied initial predictions)
 
@@ -131,7 +141,7 @@ rpredmat[,1:datalist$maxlag+(b-2)*datalist$maxlag+2*datalist$maxlag] <- predmatp
 # wallclock <- proc.time()[3]
 # if (is.whole(nT/maxlag)){
 # nT is a multiple of maxlag, last block is complete
-maxb <- nT/maxlag - 1L
+maxb <- nT.eval/maxlag.eval - 1L
 
 # b <- 3L
 for (b in 3:maxb){
@@ -143,8 +153,8 @@ for (b in 3:maxb){
 	)
 	
 	objfn <- objfn + obj_b$fn(unlist(parlist)) # sum of squared resid
-	# objgr <- objgr + as.numeric(obj_b$gr(unlist(parlist))[c(1,1:lenbeta+1)])
-	objgr <- objgr + as.numeric(obj_b$gr(unlist(parlist))[c(1,2)])
+	# objgr <- objgr + as.numeric(obj_b$gr(unlist(parlist))[c(1,2)])
+	objgr <- objgr + as.numeric(obj_b$gr(unlist(parlist))[c(1,1:lenbeta+1)]) # v0.9.2
 	
 	# system.time(
 	rep_b <- obj_b$rep(unlist(parlist))
@@ -157,7 +167,7 @@ for (b in 3:maxb){
 	
 	# update routed pred
 	predmatprev <- rep_b$fitted
-	rpredmat[,1:datalist$maxlag+(b-2)*datalist$maxlag+2*datalist$maxlag] <- predmatprev
+	rpredmat.eval[,1:maxlag.eval+(b-2)*maxlag.eval+2*maxlag.eval] <- predmatprev
 	# ^ not update first maxlag time points on which we condition, they remain equal
 	#   to the non-routed predmat (supplied initial predictions)
 	
@@ -177,7 +187,7 @@ for (b in 3:maxb){
 
 # return(out)
 
-n.active <- sum(datalist$obsindmat[,(datalist$maxlag+1):nT])
+n.active <- sum(datalist$obsindmat[,(maxlag.eval+1):nT.eval])
 objfn <- objfn/n.active
 objgr <- objgr/n.active
 # ^ sum of squared resid => MSE
