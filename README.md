@@ -3,16 +3,18 @@ routmod: R code for routing module to improve river discharge predictions along 
 
 ### Todo
 
-* [ ] adapt *_nolake vertsion of routnll_blockwise_firsteval.r and routnll_blockwise_eval.r to work with pred_routmod by calling only objects in datalist and parvec1
-* [ ] adapt *_nocov vertsion of routnll_blockwise_firsteval.r and routnll_blockwise_eval.r to work with pred_routmod by calling only objects in datalist and parvec1
-* [ ] adapt *_onlylake vertsion of routnll_blockwise_firsteval.r and routnll_blockwise_eval.r to work with pred_routmod by calling only objects in datalist and parvec1
+* [ ] update routnll_blockwise_nocov.r, routnll_blockwise_nolake.r, and routnll_blockwise_onlylake.r to v0.9.2 for dischargeinshape argument in datalit_ini and datalist.
+* [ ] adapt *_nolake version of routnll_blockwise_firsteval.r and routnll_blockwise_eval.r to work with pred_routmod by calling only objects in datalist and parvec1
+* [ ] adapt *_nocov version of routnll_blockwise_firsteval.r and routnll_blockwise_eval.r to work with pred_routmod by calling only objects in datalist and parvec1
+* [ ] adapt *_onlylake version of routnll_blockwise_firsteval.r and routnll_blockwise_eval.r to work with pred_routmod by calling only objects in datalist and parvec1
 
 
 
 ### Version History
 
-This is routmod version 0.9.1.
+This is routmod version 0.9.2.
 
+* v0.9.2: added argument dischargeinshape in datalist_ini and datalist. dischargeinshape=1 means adding the routed discharge from the upstream polygon to wshape and dischargeinshape=0 means sticking to covariates in wshapecovlist. Changes to all routnll_blockwise*.r scripts. Need to modify *_nolake, *_nocov, and *_onlylake versions later.
 * v0.9.1: replaced dgamma by user-defined gammakern in all routnll_blockwise*.r scripts. Cheaper to compute but does not affect anything.
 * v0.9:
   - routnll_blockwise.r: now conditioning on lake dummy variable, distinct sets of param in wshapebeta for lake=0 and lake=1.
