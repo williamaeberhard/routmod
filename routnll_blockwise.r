@@ -1,5 +1,7 @@
-# routnll blockwise: neg log lik for routing | v0.9.2
+# routnll blockwise: neg log lik for routing | v0.9.3
 # * Change log:
+#    - v0.9.3 (Git branch constant_wshape_lake1): only intercept in wshape for
+#             lake=1, only for dischargeinshape=0
 #    - v0.9.2: added option for routed discharge from direct upstream neighbor
 #              (fitted) to linear combination of effects in wshape. Argument
 #              dischargeinshape in datalist_ini and datalist, 0 or 1.
@@ -118,13 +120,21 @@ rout_nll_block_ini <- function(par){
 					# 		+ datalist_ini$wshapelake[[s]][[ss]]*
 					# 		sum(wshapebeta[p+1]+wshapebeta[(p+2):(2*p)]*datalist_ini$wshapecovlist[[s]][[ss]])
 					# )
+					
+					# whshape_ss <- exp(
+					# 	(1-datalist_ini$wshapelake[[s]][[ss]])*
+					# 		(wshapebeta[1]+sum(wshapebeta[2:p]*datalist_ini$wshapecovlist[[s]][[ss]])) + 
+					# 		+ datalist_ini$wshapelake[[s]][[ss]]*
+					# 		(wshapebeta[p+1]+sum(wshapebeta[(p+2):(2*p)]*datalist_ini$wshapecovlist[[s]][[ss]]))
+					# ) # v0.9.2
 					whshape_ss <- exp(
 						(1-datalist_ini$wshapelake[[s]][[ss]])*
 							(wshapebeta[1]+sum(wshapebeta[2:p]*datalist_ini$wshapecovlist[[s]][[ss]])) + 
-							+ datalist_ini$wshapelake[[s]][[ss]]*
-							(wshapebeta[p+1]+sum(wshapebeta[(p+2):(2*p)]*datalist_ini$wshapecovlist[[s]][[ss]]))
-					)
+							+ datalist_ini$wshapelake[[s]][[ss]]*wshapebeta[p+1]
+					) # v0.9.3
+					
 					# ^ distinct param in lin com for lake=0 and lake=1
+					
 					# gammadens <- dgamma(
 					# 	x=c(datalist_ini$lag0, 1:datalist_ini$maxlag), # lag0 = same day
 					# 	shape=whshape_ss, scale=wscale
@@ -320,12 +330,19 @@ rout_nll_block <- function(par){
 			for (s in datalist$routingorder){
 				# loop over all loc, excl the ones most ustr where fitted[s,]=predmat[s,]
 				for (ss in 1:length(datalist$neighlist[[s]])){ # direct ustr neighbors
+					# whshape_ss <- exp(
+					# 	(1-datalist$wshapelake[[s]][[ss]])*
+					# 		(wshapebeta[1]+sum(wshapebeta[2:p]*datalist$wshapecovlist[[s]][[ss]])) +
+					# 		+ datalist$wshapelake[[s]][[ss]]*
+					# 		(wshapebeta[p+1]+sum(wshapebeta[(p+2):(2*p)]*datalist$wshapecovlist[[s]][[ss]]))
+					# ) # v0.9.2
+					
 					whshape_ss <- exp(
 						(1-datalist$wshapelake[[s]][[ss]])*
 							(wshapebeta[1]+sum(wshapebeta[2:p]*datalist$wshapecovlist[[s]][[ss]])) +
-							+ datalist$wshapelake[[s]][[ss]]*
-							(wshapebeta[p+1]+sum(wshapebeta[(p+2):(2*p)]*datalist$wshapecovlist[[s]][[ss]]))
-					)
+							+ datalist$wshapelake[[s]][[ss]]*wshapebeta[p+1]
+					) # v0.9.3
+					
 					# ^ distinct param in lin comb for lake=0 and lake=1
 					gammadens <- gammakern(
 						x=c(datalist$lag0, 1:datalist$maxlag), # lag0 = same day
