@@ -1,7 +1,10 @@
-# routnll blockwise: neg log lik for routing | v0.9.3
+# routnll blockwise: neg log lik for routing | v1.0
 # * Change log:
-#    - v0.9.3 (Git branch constant_wshape_lake1): only intercept in wshape for
-#             lake=1, only for dischargeinshape=0
+#    - v1.0: different wshapecovlist for lake=0 and lake=1, including different
+#      intercepts. Now supply distinct wshapebeta0 and wshapebeta1. Only applies
+#      to dischargeinshape=0 (will see later if needed for dischargeinshape=1).
+#    - v0.9.3 (Git branch constant_wshape_lake1, later merged to main): only
+#             intercept in wshape for lake=1, only for dischargeinshape=0
 #    - v0.9.2: added option for routed discharge from direct upstream neighbor
 #              (fitted) to linear combination of effects in wshape. Argument
 #              dischargeinshape in datalist_ini and datalist, 0 or 1.
@@ -40,8 +43,8 @@ gammakern <- function(x,shape,scale){
 rout_nll_block_ini <- function(par){
 	# * par vector order:
 	#   - log_wscale (1)
-	#   - wshapebeta = c(par0,par1) (2p, now incl intercept for both par, and p
-	#     assumed to include last coef for routed discharge if dischargeinshape=1)
+	#   - wshapebeta0 (p0, intercept + cov, N/A if dischargeinshape=1)
+	#   - wshapebeta1 (p1, intercept + cov, N/A if dischargeinshape=1)
 	# * datalist_ini must include:
 	#   - obsmat: numeric matrix of discharge (m3/s) starting after first maxlag
 	#     time points, no NAs, nS x maxlag
@@ -54,11 +57,13 @@ rout_nll_block_ini <- function(par){
 	#   - neighlist: list of length nS, each element being an integer vector of
 	#     values within 1:nS of direct/Markov neighbors ustr, not incl itself, so
 	#     each entry is of length within {0, ..., nS-1}
-	#   - wshapecovlist: list of length nS, same ordering as neighlist, each
+	#   - wshapecovlist0: list of length nS, same ordering as neighlist, each
 	#     element being a list of numeric vectors (number of vectors is length of
 	#     the corresponding element in neighlist), each vector being of same
-	#     length p-1 = length(wshapebeta)/2-1 where the values are static cov,
-	#     excl the lake dumnmy variable, now supplied separately.
+	#     length p0-1 = length(wshapebeta0)-1 where the values are static cov,
+	#     excl the lake dumnmy variable. This is for lake=0.
+	#   - wshapecovlist1: same as wshapecovlist0, except each vector being of same
+	#     length p1-1 = length(wshapebeta1)-1. This is for lake=1.
 	#   - dischargeinshape: 1 = include routed discharge from ustr polyg in
 	#     wshape, 0 = do not include (stick to cov in wshapecovlist)
 	#   - wshapelake: list of length nS, same ordering as neighlist, each
@@ -86,14 +91,19 @@ rout_nll_block_ini <- function(par){
 	#----------------------------------------------------------------------------#
 	
 	wscale <- exp(par$log_wscale) # cst, gamma shape has all the cov
-	wshapebeta <- par$wshapebeta # v0.9: c(par0,par1), of length 2*p for lake=0/1
+	# wshapebeta <- par$wshapebeta # v0.9: c(par0,par1) of length 2*p for lake=0/1
+	wshapebeta0 <- par$wshapebeta0 # v1.0
+	wshapebeta1 <- par$wshapebeta1 # v1.0
+	# ^ as of v1.0: param for lake=0 and lake=1 can have diff dim
 	
 	nS <- nrow(datalist_ini$obsmat) # nb loc overall (polyg and stations)
 	nT <- ncol(datalist_ini$predmat) # not the total nb of time steps
 	# ^ ini: ncol(predmat)=2*maxlag, but ncols(obsmat) = latter maxlag
 	
-	p <- length(wshapebeta)/2 # length(datalist_ini$wshapecovlist[[1]][[1]]) + 1
-	# ^ nb cov + intercept
+	# p <- length(wshapebeta)/2 # length(datalist_ini$wshapecovlist[[1]][[1]]) + 1
+	p0 <- length(wshapebeta0) #
+	p1 <- length(wshapebeta1) #
+	# ^ nb cov + intercept for lake=0 and lake=1
 	
 	
 	#----------------------------------------------------------------------------#
@@ -110,35 +120,30 @@ rout_nll_block_ini <- function(par){
 		for (t in datalist_ini$tvec){ # ini: cond on 1st maxlag obs
 			for (s in datalist_ini$routingorder){
 				# loop over all loc excl the ones most ustr where fitted[s,]=predmat[s,]
-				for (ss in 1:length(datalist_ini$neighlist[[s]])){ # direct ustr neighbors
-					# whshape_ss <- exp(sum(wshapebeta[1] +
-					# 												wshapebeta[-1]*datalist_ini$wshapecovlist[[s]][[ss]]))
-					# # ^ lin comb (p->1) with log link for shape>0
-					# whshape_ss <- exp(
-					# 	(1-datalist_ini$wshapelake[[s]][[ss]])*
-					# 		sum(wshapebeta[1]+wshapebeta[2:p]*datalist_ini$wshapecovlist[[s]][[ss]]) + 
-					# 		+ datalist_ini$wshapelake[[s]][[ss]]*
-					# 		sum(wshapebeta[p+1]+wshapebeta[(p+2):(2*p)]*datalist_ini$wshapecovlist[[s]][[ss]])
-					# )
-					
+				for (ss in 1:length(datalist_ini$neighlist[[s]])){ # direct ustr neighb
+
 					# whshape_ss <- exp(
 					# 	(1-datalist_ini$wshapelake[[s]][[ss]])*
 					# 		(wshapebeta[1]+sum(wshapebeta[2:p]*datalist_ini$wshapecovlist[[s]][[ss]])) + 
 					# 		+ datalist_ini$wshapelake[[s]][[ss]]*
 					# 		(wshapebeta[p+1]+sum(wshapebeta[(p+2):(2*p)]*datalist_ini$wshapecovlist[[s]][[ss]]))
 					# ) # v0.9.2
+					
+					# whshape_ss <- exp(
+					# 	(1-datalist_ini$wshapelake[[s]][[ss]])*
+					# 		(wshapebeta[1]+sum(wshapebeta[2:p]*datalist_ini$wshapecovlist[[s]][[ss]])) + 
+					# 		+ datalist_ini$wshapelake[[s]][[ss]]*wshapebeta[p+1]
+					# ) # v0.9.3
+					
 					whshape_ss <- exp(
-						(1-datalist_ini$wshapelake[[s]][[ss]])*
-							(wshapebeta[1]+sum(wshapebeta[2:p]*datalist_ini$wshapecovlist[[s]][[ss]])) + 
-							+ datalist_ini$wshapelake[[s]][[ss]]*wshapebeta[p+1]
-					) # v0.9.3
+						(1-datalist_ini$wshapelake[[s]][[ss]])* # lake=0
+							(wshapebeta0[1] + sum(wshapebeta0[2:p0]*datalist_ini$wshapecovlist0[[s]][[ss]])) +
+							+ datalist_ini$wshapelake[[s]][[ss]]* # lake=1
+							(wshapebeta1[1]+sum(wshapebeta1[2:p1]*datalist_ini$wshapecovlist1[[s]][[ss]]))
+					) # v1.0
 					
-					# ^ distinct param in lin com for lake=0 and lake=1
+					# ^ distinct param in lin comb for lake=0 and lake=1
 					
-					# gammadens <- dgamma(
-					# 	x=c(datalist_ini$lag0, 1:datalist_ini$maxlag), # lag0 = same day
-					# 	shape=whshape_ss, scale=wscale
-					# )
 					gammadens <- gammakern(
 						x=c(datalist_ini$lag0, 1:datalist_ini$maxlag), # lag0 = same day
 						shape=whshape_ss,
@@ -154,6 +159,13 @@ rout_nll_block_ini <- function(par){
 		} # for t in (maxlag+1):nT
 		
 	} else {
+		# TODO: adapt with wshapebeta0 and wshapebeta1 if needed. as of v1.0 not
+		# working so error below.
+		
+		stop('routnll_blockwise.r not adapted for datalist_ini$dischargeinshape==1',
+				 'with distinct cov/param for lake=0 and lake=1, as of v1.0.')
+		
+		
 		# then add routed discharge to wshape lin comb, with dim of wshapebeta
 		# assumed correct.
 		
@@ -161,7 +173,7 @@ rout_nll_block_ini <- function(par){
 		for (t in datalist_ini$tvec){ # ini: cond on 1st maxlag obs
 			for (s in datalist_ini$routingorder){
 				# loop over all loc excl the ones most ustr where fitted[s,]=predmat[s,]
-				for (ss in 1:length(datalist_ini$neighlist[[s]])){ # direct ustr neighbors
+				for (ss in 1:length(datalist_ini$neighlist[[s]])){ # direct ustr neighb
 
 					covvec_tmp <- c(datalist_ini$wshapecovlist[[s]][[ss]], 
 													fitted[datalist_ini$neighlist[[s]][[ss]], t]
@@ -235,8 +247,8 @@ rout_nll_block_ini <- function(par){
 rout_nll_block <- function(par){
 	# * par vector order:
 	#   - log_wscale (1)
-	#   - wshapebeta = c(par0,par1) (2p, now incl intercept for both par, and p
-	#     assumed to include last coef for routed discharge if dischargeinshape=1)
+	#   - wshapebeta0 (p0, intercept + cov, N/A if dischargeinshape=1)
+	#   - wshapebeta1 (p1, intercept + cov, N/A if dischargeinshape=1)
 	#   - b (1), index for blocks in DataEval
 	#   - predmatprev (nS x maxlag), fitted from previous block
 	# * datalist must include:
@@ -249,11 +261,13 @@ rout_nll_block <- function(par){
 	#   - neighlist: list of length nS, each element being an integer vector of
 	#     values within 1:nS of direct/Markov neighbors ustr, not incl itself, so
 	#     each entry is of length within {0, ..., nS-1}
-	#   - wshapecovlist: list of length nS, same ordering as neighlist, each
+	#   - wshapecovlist0: list of length nS, same ordering as neighlist, each
 	#     element being a list of numeric vectors (number of vectors is length of
 	#     the corresponding element in neighlist), each vector being of same
-	#     length p-1 = length(wshapebeta)/2-1 where the values are static cov,
-	#     excl the lake dumnmy variable, now supplied separately.
+	#     length p0-1 = length(wshapebeta0)-1 where the values are static cov,
+	#     excl the lake dumnmy variable. This is for lake=0.
+	#   - wshapecovlist1: same as wshapecovlist0, except each vector being of same
+	#     length p1-1 = length(wshapebeta1)-1. This is for lake=1.
 	#   - wshapelake: list of length nS, same ordering as neighlist, each
 	#     element being a list of scalars (number of vectors is length of the
 	#     corresponding element in neighlist), each scalar being the lake dummy
@@ -275,13 +289,18 @@ rout_nll_block <- function(par){
 	#----------------------------------------------------------------------------#
 	
 	wscale <- exp(par$log_wscale) # cst, gamma shape has all the cov
-	wshapebeta <- par$wshapebeta # v0.9: c(par0,par1), of length 2*p for lake=0/1
+	# wshapebeta <- par$wshapebeta # v0.9: c(par0,par1) of length 2*p for lake=0/1
+	wshapebeta0 <- par$wshapebeta0 # v1.0
+	wshapebeta1 <- par$wshapebeta1 # v1.0
+	# ^ as of v1.0: param for lake=0 and lake=1 can have diff dim
 	
 	nS <- nrow(datalist$obsmat) # nb loc overall (polyg and stations)
 	nT <- ncol(datalist$predmat) # total nb time points
 	
-	p <- length(wshapebeta)/2 # length(datalist$wshapecovlist[[1]][[1]]) + 1
-	# ^ nb cov + intercept
+	# p <- length(wshapebeta)/2 # length(datalist_ini$wshapecovlist[[1]][[1]]) + 1
+	p0 <- length(wshapebeta0) #
+	p1 <- length(wshapebeta1) #
+	# ^ nb cov + intercept for lake=0 and lake=1
 	
 	# predmatprev1 <- DataEval(f=function(i){
 	# 	matrix(as.double(i),nS)
@@ -328,8 +347,9 @@ rout_nll_block <- function(par){
 		
 		for (t in (1+datalist$maxlag):nT1){
 			for (s in datalist$routingorder){
-				# loop over all loc, excl the ones most ustr where fitted[s,]=predmat[s,]
+				# loop over all loc excl the ones most ustr where fitted[s,]=predmat[s,]
 				for (ss in 1:length(datalist$neighlist[[s]])){ # direct ustr neighbors
+					
 					# whshape_ss <- exp(
 					# 	(1-datalist$wshapelake[[s]][[ss]])*
 					# 		(wshapebeta[1]+sum(wshapebeta[2:p]*datalist$wshapecovlist[[s]][[ss]])) +
@@ -337,11 +357,18 @@ rout_nll_block <- function(par){
 					# 		(wshapebeta[p+1]+sum(wshapebeta[(p+2):(2*p)]*datalist$wshapecovlist[[s]][[ss]]))
 					# ) # v0.9.2
 					
+					# whshape_ss <- exp(
+					# 	(1-datalist$wshapelake[[s]][[ss]])*
+					# 		(wshapebeta[1]+sum(wshapebeta[2:p]*datalist$wshapecovlist[[s]][[ss]])) +
+					# 		+ datalist$wshapelake[[s]][[ss]]*wshapebeta[p+1]
+					# ) # v0.9.3
+					
 					whshape_ss <- exp(
-						(1-datalist$wshapelake[[s]][[ss]])*
-							(wshapebeta[1]+sum(wshapebeta[2:p]*datalist$wshapecovlist[[s]][[ss]])) +
-							+ datalist$wshapelake[[s]][[ss]]*wshapebeta[p+1]
-					) # v0.9.3
+						(1-datalist$wshapelake[[s]][[ss]])* # lake=0
+							(wshapebeta0[1] + sum(wshapebeta0[2:p0]*datalist$wshapecovlist0[[s]][[ss]])) +
+							+ datalist$wshapelake[[s]][[ss]]* # lake=1
+							(wshapebeta1[1]+sum(wshapebeta1[2:p1]*datalist$wshapecovlist1[[s]][[ss]]))
+					) # v1.0
 					
 					# ^ distinct param in lin comb for lake=0 and lake=1
 					gammadens <- gammakern(
@@ -359,6 +386,13 @@ rout_nll_block <- function(par){
 		} # for t in (maxlag+1):nT1
 		
 	} else {
+		# TODO: adapt with wshapebeta0 and wshapebeta1 if needed. as of v1.0 not
+		# working so error below.
+		
+		stop('routnll_blockwise.r not adapted for datalist_ini$dischargeinshape==1',
+				 'with distinct cov/param for lake=0 and lake=1, as of v1.0.')
+		
+		
 		# then add routed discharge to wshape lin comb, with dim of wshapebeta
 		# assumed correct.
 	

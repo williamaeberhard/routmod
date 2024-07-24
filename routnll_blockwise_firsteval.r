@@ -1,5 +1,8 @@
-# routnll_blockwise_firsteval: eval fn and gr of rounll_blockwise | v0.9.3
+# routnll_blockwise_firsteval: eval fn and gr of rounll_blockwise | v1.0
 # * Change log:
+#    - v1.0: different wshapecovlist for lake=0 and lake=1, including different
+#      intercepts. Now supply distinct wshapebeta0 and wshapebeta1. Only applies
+#      to dischargeinshape=0 (will see later if needed for dischargeinshape=1).
 #    - v0.9.3: nothing changed here, just to match routnll_blockwise.r
 #    - v0.9.2: nothing changed here, just to match routnll_blockwise.r
 #    - v0.9:
@@ -29,11 +32,23 @@ if (!is.whole(nT.eval/maxlag.eval)){
 }
 
 # rpredmat <- predmat # bad, should call datalist
-rpredmat.eval <- datalist$predmat
+rpredmat.eval <- datalist$predmat # correct, datalist and not datalist_ini
 
 parvec <- parvec1
 # ^ v0.4: now incl intercept as [2], log_wscale remains [1]
 # ^ v0.9: c(log_wscale, par0, par1), both par incl intercept (2p+1)
+
+polyg_ref <- which(lapply(datalist$neighlist,'length')>1)[1]
+# ^ [1] arbitrary, just a polyg with >=1 neighb ustr, to extract cov dim
+p0 <- length(datalist$wshapecovlist0[[polyg_ref]][[1]]) + 1
+p1 <- length(datalist$wshapecovlist1[[polyg_ref]][[1]]) + 1
+# ^ cov dim for lake=0 and lake=1, incl intercept as in routnll_blockwise.r
+
+if (length(parvec) != (p0+p1+1)){ # +1 scale
+	stop('length(parvec1) != p0+p1+1, where p0 and p1 are from wshapecovlist0 ',
+			 'and wshapecovlist1 (+1 for each intercept) in datalist.')
+}
+
 
 ### // ini ----
 # ini: first maxlag time points on which we condition, then first block of
@@ -41,9 +56,12 @@ parvec <- parvec1
 
 parlist_ini <- list(
 	'log_wscale'=parvec[1],
-	'wshapebeta'=parvec[2:length(parvec)] # v0.4: now incl intercept as [1]
+	# 'wshapebeta'=parvec[2:length(parvec)] # v0.4: now incl intercept as [1]
+	'wshapebeta0'=parvec[2:(p0+1)], # v1.0
+	'wshapebeta1'=parvec[(p0+2):(p0+p1+1)], # v1.0
 )
-lenbeta <- length(parlist_ini$wshapebeta)
+# lenbeta <- length(parlist_ini$wshapebeta)
+lenbeta <- length(parvec) # v1.0
 
 # tvec <- (maxlag+1):(2*maxlag)
 # 
@@ -96,7 +114,9 @@ b <- 2L
 
 parlist <- list(
 	'log_wscale'=parlist_ini$log_wscale, # parvec[1],
-	'wshapebeta'=parlist_ini$wshapebeta, # parvec[2],
+	# 'wshapebeta'=parlist_ini$wshapebeta, # parvec[2],
+	'wshapebeta0'=parlist_ini$wshapebeta0, # v1.0
+	'wshapebeta1'=parlist_ini$wshapebeta1, # v1.0
 	'b'=b,
 	'predmatprev'=predmatprev # update fitted from previous block
 )
@@ -125,7 +145,8 @@ suppressWarnings(
 # ^  | MBP13 Toy4 nS=9445 maxlag=5
 
 objfn <- objfn + obj_b$fn(unlist(parlist)) # sum of squared resid
-objgr <- objgr + as.numeric(obj_b$gr(unlist(parlist))[c(1,1:lenbeta+1)])
+# objgr <- objgr + as.numeric(obj_b$gr(unlist(parlist))[c(1,1:lenbeta+1)])
+objgr <- objgr + as.numeric(obj_b$gr(unlist(parlist))[1:lenbeta]) # v1.0
 
 # system.time(
 rep_b <- obj_b$rep(unlist(parlist))
@@ -161,13 +182,16 @@ maxb <- nT.eval/maxlag.eval - 1L
 for (b in 3:maxb){
 	parlist <- list(
 		'log_wscale'=parlist_ini$log_wscale, # parvec[1],
-		'wshapebeta'=parlist_ini$wshapebeta, # parvec[2],
+		# 'wshapebeta'=parlist_ini$wshapebeta, # parvec[2],
+		'wshapebeta0'=parlist_ini$wshapebeta0, # v1.0
+		'wshapebeta1'=parlist_ini$wshapebeta1, # v1.0
 		'b'=b,
 		'predmatprev'=predmatprev # update fitted from previous block
 	)
 	
 	objfn <- objfn + obj_b$fn(unlist(parlist)) # sum of squared resid
-	objgr <- objgr + as.numeric(obj_b$gr(unlist(parlist))[c(1,1:lenbeta+1)])
+	# objgr <- objgr + as.numeric(obj_b$gr(unlist(parlist))[c(1,1:lenbeta+1)])
+	objgr <- objgr + as.numeric(obj_b$gr(unlist(parlist))[1:lenbeta]) # v1.0
 	
 	# system.time(
 	rep_b <- obj_b$rep(unlist(parlist))

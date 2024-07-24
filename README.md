@@ -16,8 +16,10 @@ routmod: R code for routing module to improve river discharge predictions along 
 
 ### Version History
 
-This is routmod version 0.9.3.
+This is routmod version 1.0.
 
+* v1.0:
+  - routnll_blockwise.r, routnll_blockwise_firsteval.r, and routnll_blockwise_eval.r: different parameters and covariate sets for lake=0 and lake=1. parvec[1] is still a common constant scale but wshape params are elements 2:(p0+1) for lake=0 and (p0+2):(p0+p1+1) for lake=1, where p0 = length(datalist$wshapecovlist0[[polyg_ref]][[1]])+1 and p1 = length(datalist$wshapecovlist1[[polyg_ref]][[1]])+1 for an arbitrary polygon polyg_ref guaranteed to have >=1 upstream neighbor (from neighlist). Only applies to dischargeinshape=0 (dischargeinshape=1 will now throw an error because not adapted yet).
 * v0.9.3:
   - routnll_blockwise.r: hard-coded intercept only in wshape for lake=1. Nothing changed in routnll_blockwise_firsteval.r and routnll_blockwise_eval.r but labeled as v0.9.3 to match routnll_blockwise.r.
 * v0.9.2:
@@ -28,8 +30,8 @@ This is routmod version 0.9.3.
   - routnll_blockwise.r: now conditioning on lake dummy variable, distinct sets of param in wshapebeta for lake=0 and lake=1.
   - created *_nolake versions of routnll_blockwise.r, routnll_blockwise_firsteval.r, and routnll_blockwise_eval.r, for routing without lake conditioning, i.e. equivalent to v0.8.
   - created *_nocov versions of routnll_blockwise.r, routnll_blockwise_firsteval.r, and routnll_blockwise_eval.r, for routing with same param everywhere, i.e., constant scale and shape parameters for the gamma density kernel.
- - created *_onlylake versions of routnll_blockwise.r, routnll_blockwise_firsteval.r, and routnll_blockwise_eval.r, for routing with lake conditioning but nother covariates, i.e., no wshapecovlist is used and there are only two distinct intercepts for lake=0 and lake=1 in wshapebeta.
- - adapted routnll_blockwise_firsteval.r and routnll_blockwise_eval.r to work with pred_routmod by calling only objects in datalist in addition to parvec1
+  - created *_onlylake versions of routnll_blockwise.r, routnll_blockwise_firsteval.r, and routnll_blockwise_eval.r, for routing with lake conditioning but nother covariates, i.e., no wshapecovlist is used and there are only two distinct intercepts for lake=0 and lake=1 in wshapebeta.
+  - adapted routnll_blockwise_firsteval.r and routnll_blockwise_eval.r to work with pred_routmod by calling only objects in datalist in addition to parvec1
 * v0.8:
   - routnll_blockwise.r: added option datalist$losscode=3 for MSE on sqrt runoff scale. $fitted remains on raw discharge scale.
 * v0.7:
