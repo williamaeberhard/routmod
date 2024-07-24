@@ -57,8 +57,8 @@ if (length(parvec) != (p0+p1+1)){ # +1 scale
 parlist_ini <- list(
 	'log_wscale'=parvec[1],
 	# 'wshapebeta'=parvec[2:length(parvec)] # v0.4: now incl intercept as [1]
-	'wshapebeta0'=parvec[2:(p0+1)], # v1.0
-	'wshapebeta1'=parvec[(p0+2):(p0+p1+1)], # v1.0
+	'wshapebeta0'=parvec[2:(p0+1)],        # v1.0
+	'wshapebeta1'=parvec[(p0+2):(p0+p1+1)] # v1.0
 )
 # lenbeta <- length(parlist_ini$wshapebeta)
 lenbeta <- length(parvec) # v1.0
