@@ -3,15 +3,13 @@ routmod: R code for routing module to improve river discharge predictions along 
 
 ### To do
 
+* [ ] documentation for v1.0, including MWE and usage.
 * [x] update routnll_blockwise_nocov.r to v0.9.2 for dischargeinshape argument in datalist_ini and datalist.
 * [x] adapt *_nocov version of routnll_blockwise_firsteval.r and routnll_blockwise_eval.r to work with pred_routmod by calling only objects in datalist and parvec1
 * [x] update routnll_blockwise_onlylake.r to v0.9.2 for dischargeinshape argument in datalist_ini and datalist.
 * [x] adapt *_onlylake version of routnll_blockwise_firsteval.r and routnll_blockwise_eval.r to work with pred_routmod by calling only objects in datalist and parvec1
-
-* [ ] update routnll_blockwise_nolake.r to v0.9.2 for dischargeinshape argument in datalist_ini and datalist.
-* [ ] adapt *_nolake version of routnll_blockwise_firsteval.r and routnll_blockwise_eval.r to work with pred_routmod by calling only objects in datalist and parvec1
-
-
+* [-] update routnll_blockwise_nolake.r to v0.9.2 for dischargeinshape argument in datalist_ini and datalist.
+* [-] adapt *_nolake version of routnll_blockwise_firsteval.r and routnll_blockwise_eval.r to work with pred_routmod by calling only objects in datalist and parvec1
 
 
 ### Version History
